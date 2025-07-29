@@ -9,7 +9,8 @@ export default function Home() {
             Captiony
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Web-based subtitle editor - Add and edit subtitles for your videos with ease
+            Web-based subtitle editor - Add and edit subtitles for your videos
+            with ease
           </p>
         </div>
 

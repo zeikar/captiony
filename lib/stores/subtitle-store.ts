@@ -4,7 +4,7 @@ import { create } from "zustand";
 export interface SubtitleItem {
   id: string;
   startTime: number; // in seconds
-  endTime: number;   // in seconds
+  endTime: number; // in seconds
   text: string;
 }
 
@@ -21,30 +21,30 @@ export interface VideoState {
 interface SubtitleStore {
   // Video state
   video: VideoState;
-  
+
   // Subtitle state
   subtitles: SubtitleItem[];
   selectedSubtitleId: string | null;
-  
+
   // Timeline state
   timelineScale: number; // zoom level
   timelineOffset: number; // scroll offset
-  
+
   // Actions
   setVideoUrl: (url: string) => void;
   setVideoDuration: (duration: number) => void;
   setCurrentTime: (time: number) => void;
   setIsPlaying: (playing: boolean) => void;
   setVolume: (volume: number) => void;
-  
-  addSubtitle: (subtitle: Omit<SubtitleItem, 'id'>) => void;
+
+  addSubtitle: (subtitle: Omit<SubtitleItem, "id">) => void;
   updateSubtitle: (id: string, updates: Partial<SubtitleItem>) => void;
   deleteSubtitle: (id: string) => void;
   selectSubtitle: (id: string | null) => void;
-  
+
   setTimelineScale: (scale: number) => void;
   setTimelineOffset: (offset: number) => void;
-  
+
   // Utility functions
   getCurrentSubtitle: () => SubtitleItem | null;
   exportSRT: () => string;

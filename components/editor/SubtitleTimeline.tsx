@@ -36,6 +36,23 @@ export function SubtitleTimeline() {
 
   useEffect(() => {
     drawTimeline();
+
+    // 현재 시간이 타임라인 화면 밖으로 나가면 자동으로 스크롤
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    if (canvasRect) {
+      const currentTimeX =
+        (video.currentTime - timelineOffset) * PIXELS_PER_SECOND;
+      const timelineWidth = canvasRect.width;
+
+      // 현재 시간이 화면 밖으로 나갔을 때 자동 스크롤
+      if (currentTimeX < 0) {
+        setTimelineOffset(Math.max(0, video.currentTime - 2)); // 2초 여유분
+      } else if (currentTimeX > timelineWidth) {
+        setTimelineOffset(
+          video.currentTime - timelineWidth / PIXELS_PER_SECOND + 2
+        );
+      }
+    }
   }, [video, subtitles, selectedSubtitleId, timelineScale, timelineOffset]);
 
   const drawTimeline = () => {
@@ -279,7 +296,8 @@ export function SubtitleTimeline() {
     } else {
       // Click on empty space to change current time
       const time = getTimeFromX(x);
-      setCurrentTime(Math.max(0, Math.min(time, video.duration)));
+      const clampedTime = Math.max(0, Math.min(time, video.duration || 0));
+      setCurrentTime(clampedTime);
       selectSubtitle(null);
     }
   };
