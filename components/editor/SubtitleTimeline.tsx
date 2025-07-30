@@ -289,24 +289,90 @@ export function SubtitleTimeline() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [selectedSubtitleId, subtitles, selectSubtitle, updateSubtitle]);
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
+  // 휠 이벤트 핸들러 (non-passive로 등록하기 위해 useEffect 사용)
+  useEffect(() => {
+    const timelineElement = timelineRef.current;
+    if (!timelineElement) return;
 
-    if (e.ctrlKey || e.metaKey) {
-      // Zoom
-      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-      const newScale = Math.max(0.5, Math.min(3, timelineScale * zoomFactor));
-      setTimelineScale(newScale);
-    } else {
-      // Scroll
-      const scrollSpeed = 2;
-      const newOffset = Math.max(
-        0,
-        timelineOffset + (e.deltaY > 0 ? scrollSpeed : -scrollSpeed)
-      );
-      setTimelineOffset(newOffset);
-    }
-  };
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.ctrlKey || e.metaKey) {
+        // Zoom (마우스 포인터 위치를 중심으로 줌)
+        const rect = timelineElement.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseTime = getTimeFromX(mouseX);
+        
+        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1; // 줌 속도도 조금 줄임
+        const newScale = Math.max(0.5, Math.min(5, timelineScale * zoomFactor));
+        
+        // 마우스 위치를 중심으로 줌하도록 오프셋 조정
+        const newMouseTime = mouseTime;
+        const newMouseX = mouseX;
+        const newOffset = newMouseTime - (newMouseX / (50 * newScale));
+        
+        setTimelineScale(newScale);
+        setTimelineOffset(Math.max(0, newOffset));
+      } else {
+        // 스크롤 (위아래 및 좌우 모두 처리)
+        const rect = timelineElement.getBoundingClientRect();
+
+        // 델타 값을 정규화 (다양한 브라우저/디바이스 호환성)
+        let deltaY = e.deltaY;
+        let deltaX = e.deltaX;
+        
+        if (e.deltaMode === 1) {
+          // DOM_DELTA_LINE
+          deltaY *= 33;
+          deltaX *= 33;
+        } else if (e.deltaMode === 2) {
+          // DOM_DELTA_PAGE
+          deltaY *= rect.height;
+          deltaX *= rect.width;
+        }
+
+        // 스크롤 속도 조정 (좀 더 느리게)
+        const baseScrollSpeed = 1; // 기본 스크롤 속도 (3에서 1로 줄임)
+        const fastScrollThreshold = 100; // 빠른 스크롤 임계값
+        
+        // 주 스크롤 방향 결정 (deltaY가 더 크면 세로 스크롤, deltaX가 더 크면 가로 스크롤)
+        const isDeltaYDominant = Math.abs(deltaY) > Math.abs(deltaX);
+        const primaryDelta = isDeltaYDominant ? deltaY : deltaX;
+        
+        let scrollSpeed;
+        if (Math.abs(primaryDelta) > fastScrollThreshold) {
+          scrollSpeed = baseScrollSpeed * 1.5; // 빠른 스크롤 (2에서 1.5로 줄임)
+        } else {
+          scrollSpeed = baseScrollSpeed; // 일반 스크롤
+        }
+        
+        // 세로 스크롤 또는 가로 스크롤이 없을 때는 세로를 가로로 변환
+        let scrollDirection;
+        if (deltaX !== 0) {
+          // 가로 스크롤이 있으면 가로 스크롤 우선
+          scrollDirection = deltaX > 0 ? 1 : -1;
+        } else {
+          // 세로 스크롤을 가로 스크롤로 변환
+          scrollDirection = deltaY > 0 ? 1 : -1;
+        }
+        
+        const scrollTime = scrollSpeed * scrollDirection;
+        
+        const newOffset = Math.max(0, timelineOffset + scrollTime);
+        const maxOffset = Math.max(0, (video.duration || 0) - rect.width / PIXELS_PER_SECOND);
+        
+        setTimelineOffset(Math.min(newOffset, maxOffset));
+      }
+    };
+
+    // non-passive 이벤트 리스너로 등록
+    timelineElement.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      timelineElement.removeEventListener('wheel', handleWheel);
+    };
+  }, [timelineOffset, timelineScale, getTimeFromX, PIXELS_PER_SECOND, video.duration, setTimelineScale, setTimelineOffset]);
 
   const layers = arrangeSubtitlesInLayers(subtitles);
   const timeMarkers = generateTimeMarkers();
@@ -341,9 +407,13 @@ export function SubtitleTimeline() {
       <div
         ref={timelineRef}
         className="relative border border-gray-300 dark:border-gray-600 rounded overflow-hidden cursor-pointer select-none"
-        style={{ height: TIMELINE_HEIGHT }}
+        style={{ 
+          height: TIMELINE_HEIGHT,
+          touchAction: 'none', // 터치 스크롤 방지
+          userSelect: 'none'    // 텍스트 선택 방지
+        }}
         onClick={handleTimelineClick}
-        onWheel={handleWheel}
+        tabIndex={0} // 키보드 포커스 가능하도록
       >
         {/* 배경 */}
         <div className="absolute inset-0 bg-gray-100 dark:bg-gray-700"></div>
@@ -451,7 +521,7 @@ export function SubtitleTimeline() {
 
       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
         <div>
-          Ctrl/Cmd + Wheel: Zoom | Wheel: Scroll | Drag: Move/Resize Subtitles
+          Ctrl/Cmd + Wheel: Zoom (around mouse cursor) | Wheel (↕/↔): Scroll timeline | Drag: Move/Resize Subtitles
         </div>
         <div>Shift + ←/→: Move selected subtitle | Esc: Deselect</div>
       </div>
