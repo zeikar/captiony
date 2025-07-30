@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from "react";
-import { useSubtitleStore } from "@/lib/stores/subtitle-store";
+import { useVideoStore } from "@/lib/stores/video-store";
 
 const SYNC_THRESHOLD = 0.1; // 0.1초 이상 차이날 때만 동기화
 
@@ -8,7 +8,7 @@ export function useVideoPlayer() {
   const isSeekingRef = useRef(false);
 
   const { video, setCurrentTime, setIsPlaying, setVideoDuration, setVolume } =
-    useSubtitleStore();
+    useVideoStore();
 
   // 비디오 이벤트 핸들러들
   const handleTimeUpdate = useCallback(() => {

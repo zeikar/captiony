@@ -8,6 +8,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
+import { useVideoStore } from "@/lib/stores/video-store";
 import type { SubtitleItem } from "@/lib/stores/subtitle-store";
 
 export function SubtitleEditor() {
@@ -17,8 +18,9 @@ export function SubtitleEditor() {
     updateSubtitle,
     deleteSubtitle,
     selectSubtitle,
-    setCurrentTime,
   } = useSubtitleStore();
+
+  const { setCurrentTime } = useVideoStore();
 
   const [editingId, setEditingId] = useState<string | null>(null);
 

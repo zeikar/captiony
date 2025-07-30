@@ -8,14 +8,15 @@ import {
   PlusIcon,
 } from "@heroicons/react/24/outline";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
+import { useVideoStore } from "@/lib/stores/video-store";
 import { saveAs } from "file-saver";
 
 export function ToolBar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const srtInputRef = useRef<HTMLInputElement>(null);
 
-  const { setVideoUrl, addSubtitle, exportSRT, importSRT, video } =
-    useSubtitleStore();
+  const { addSubtitle, exportSRT, importSRT } = useSubtitleStore();
+  const { setVideoUrl, video } = useVideoStore();
 
   const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useVideoStore } from "./video-store";
 
 // Subtitle item type definition
 export interface SubtitleItem {
@@ -8,20 +9,8 @@ export interface SubtitleItem {
   text: string;
 }
 
-// Video state type definition
-export interface VideoState {
-  url: string | null;
-  duration: number;
-  currentTime: number;
-  isPlaying: boolean;
-  volume: number;
-}
-
 // Store state type definition
 interface SubtitleStore {
-  // Video state
-  video: VideoState;
-
   // Subtitle state
   subtitles: SubtitleItem[];
   selectedSubtitleId: string | null;
@@ -31,12 +20,6 @@ interface SubtitleStore {
   timelineOffset: number; // scroll offset
 
   // Actions
-  setVideoUrl: (url: string) => void;
-  setVideoDuration: (duration: number) => void;
-  setCurrentTime: (time: number) => void;
-  setIsPlaying: (playing: boolean) => void;
-  setVolume: (volume: number) => void;
-
   addSubtitle: (subtitle: Omit<SubtitleItem, "id">) => void;
   updateSubtitle: (id: string, updates: Partial<SubtitleItem>) => void;
   deleteSubtitle: (id: string) => void;
@@ -53,14 +36,6 @@ interface SubtitleStore {
 
 export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
   // Initial state
-  video: {
-    url: null,
-    duration: 30, // 30 seconds for demo data
-    currentTime: 0,
-    isPlaying: false,
-    volume: 1,
-  },
-
   subtitles: [
     {
       id: "1",
@@ -98,32 +73,6 @@ export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
   timelineScale: 1,
   timelineOffset: 0,
 
-  // Video actions
-  setVideoUrl: (url) =>
-    set((state) => ({
-      video: { ...state.video, url },
-    })),
-
-  setVideoDuration: (duration) =>
-    set((state) => ({
-      video: { ...state.video, duration },
-    })),
-
-  setCurrentTime: (currentTime) =>
-    set((state) => ({
-      video: { ...state.video, currentTime },
-    })),
-
-  setIsPlaying: (isPlaying) =>
-    set((state) => ({
-      video: { ...state.video, isPlaying },
-    })),
-
-  setVolume: (volume) =>
-    set((state) => ({
-      video: { ...state.video, volume },
-    })),
-
   // Subtitle actions
   addSubtitle: (subtitle) =>
     set((state) => ({
@@ -158,7 +107,8 @@ export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
 
   // Utility functions
   getCurrentSubtitle: () => {
-    const { video, subtitles } = get();
+    const { subtitles } = get();
+    const { video } = useVideoStore.getState();
     return (
       subtitles.find(
         (sub) =>

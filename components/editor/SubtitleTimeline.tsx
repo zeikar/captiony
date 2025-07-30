@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
+import { useVideoStore } from "@/lib/stores/video-store";
 import type { SubtitleItem } from "@/lib/stores/subtitle-store";
 
 export function SubtitleTimeline() {
@@ -9,22 +10,24 @@ export function SubtitleTimeline() {
   const currentTimeLineRef = useRef<HTMLDivElement>(null);
 
   const {
-    video,
     subtitles,
     selectedSubtitleId,
     timelineScale,
     timelineOffset,
-    setCurrentTime,
     setTimelineScale,
     setTimelineOffset,
     selectSubtitle,
     updateSubtitle,
   } = useSubtitleStore();
 
+  const { video, setCurrentTime } = useVideoStore();
+
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [draggedSubtitle, setDraggedSubtitle] = useState<string | null>(null);
-  const [resizeHandle, setResizeHandle] = useState<"start" | "end" | null>(null);
+  const [resizeHandle, setResizeHandle] = useState<"start" | "end" | null>(
+    null
+  );
   const lastUpdateRef = useRef<number>(0);
 
   // Timeline scaling constants
@@ -48,14 +51,20 @@ export function SubtitleTimeline() {
   // 자동 스크롤 (별도로 처리)
   useEffect(() => {
     const timelineRect = timelineRef.current?.getBoundingClientRect();
-    if (timelineRect && video.isPlaying) { // 재생 중일 때만 자동 스크롤
-      const currentTimeX = (video.currentTime - timelineOffset) * PIXELS_PER_SECOND;
+    if (timelineRect && video.isPlaying) {
+      // 재생 중일 때만 자동 스크롤
+      const currentTimeX =
+        (video.currentTime - timelineOffset) * PIXELS_PER_SECOND;
       const timelineWidth = timelineRect.width;
 
-      if (currentTimeX < 50) { // 왼쪽 여유분
+      if (currentTimeX < 50) {
+        // 왼쪽 여유분
         setTimelineOffset(Math.max(0, video.currentTime - 2));
-      } else if (currentTimeX > timelineWidth - 50) { // 오른쪽 여유분
-        setTimelineOffset(video.currentTime - timelineWidth / PIXELS_PER_SECOND + 2);
+      } else if (currentTimeX > timelineWidth - 50) {
+        // 오른쪽 여유분
+        setTimelineOffset(
+          video.currentTime - timelineWidth / PIXELS_PER_SECOND + 2
+        );
       }
     }
   }, [video.currentTime, video.isPlaying, timelineOffset, PIXELS_PER_SECOND]);
@@ -90,8 +99,13 @@ export function SubtitleTimeline() {
 
     // 보조 눈금 (0.5초 간격, 줌이 클 때만)
     if (timelineScale >= 1) {
-      for (let time = Math.floor(startTime * 2) / 2; time <= Math.ceil(endTime * 2) / 2; time += 0.5) {
-        if (time % 1 !== 0) { // 1초 단위가 아닌 것만
+      for (
+        let time = Math.floor(startTime * 2) / 2;
+        time <= Math.ceil(endTime * 2) / 2;
+        time += 0.5
+      ) {
+        if (time % 1 !== 0) {
+          // 1초 단위가 아닌 것만
           const x = (time - startTime) * PIXELS_PER_SECOND;
           if (x >= -50 && x <= timelineRect.width + 50) {
             minorMarkers.push({ time, x });
@@ -104,9 +118,13 @@ export function SubtitleTimeline() {
   };
 
   // 자막을 레이어별로 배치
-  const arrangeSubtitlesInLayers = (subtitles: SubtitleItem[]): SubtitleItem[][] => {
+  const arrangeSubtitlesInLayers = (
+    subtitles: SubtitleItem[]
+  ): SubtitleItem[][] => {
     const layers: SubtitleItem[][] = [];
-    const sortedSubtitles = [...subtitles].sort((a, b) => a.startTime - b.startTime);
+    const sortedSubtitles = [...subtitles].sort(
+      (a, b) => a.startTime - b.startTime
+    );
 
     sortedSubtitles.forEach((subtitle) => {
       let placed = false;
@@ -140,7 +158,11 @@ export function SubtitleTimeline() {
     setCurrentTime(clampedTime);
   };
 
-  const handleSubtitleMouseDown = (e: React.MouseEvent, subtitleId: string, handle?: "start" | "end") => {
+  const handleSubtitleMouseDown = (
+    e: React.MouseEvent,
+    subtitleId: string,
+    handle?: "start" | "end"
+  ) => {
     e.stopPropagation();
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
@@ -149,34 +171,48 @@ export function SubtitleTimeline() {
     selectSubtitle(subtitleId);
   };
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging || !draggedSubtitle) return;
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDragging || !draggedSubtitle) return;
 
-    const deltaX = e.clientX - dragStart.x;
-    const deltaTime = deltaX / PIXELS_PER_SECOND;
+      const deltaX = e.clientX - dragStart.x;
+      const deltaTime = deltaX / PIXELS_PER_SECOND;
 
-    const subtitle = subtitles.find((s) => s.id === draggedSubtitle);
-    if (!subtitle) return;
+      const subtitle = subtitles.find((s) => s.id === draggedSubtitle);
+      if (!subtitle) return;
 
-    if (resizeHandle === "start") {
-      const newStartTime = Math.max(0, subtitle.startTime + deltaTime);
-      if (newStartTime < subtitle.endTime) {
-        updateSubtitle(subtitle.id, { startTime: newStartTime });
+      if (resizeHandle === "start") {
+        const newStartTime = Math.max(0, subtitle.startTime + deltaTime);
+        if (newStartTime < subtitle.endTime) {
+          updateSubtitle(subtitle.id, { startTime: newStartTime });
+        }
+      } else if (resizeHandle === "end") {
+        const newEndTime = Math.max(
+          subtitle.startTime + 0.1,
+          subtitle.endTime + deltaTime
+        );
+        updateSubtitle(subtitle.id, { endTime: newEndTime });
+      } else {
+        const duration = subtitle.endTime - subtitle.startTime;
+        const newStartTime = Math.max(0, subtitle.startTime + deltaTime);
+        updateSubtitle(subtitle.id, {
+          startTime: newStartTime,
+          endTime: newStartTime + duration,
+        });
       }
-    } else if (resizeHandle === "end") {
-      const newEndTime = Math.max(subtitle.startTime + 0.1, subtitle.endTime + deltaTime);
-      updateSubtitle(subtitle.id, { endTime: newEndTime });
-    } else {
-      const duration = subtitle.endTime - subtitle.startTime;
-      const newStartTime = Math.max(0, subtitle.startTime + deltaTime);
-      updateSubtitle(subtitle.id, {
-        startTime: newStartTime,
-        endTime: newStartTime + duration,
-      });
-    }
 
-    setDragStart({ x: e.clientX, y: e.clientY });
-  }, [isDragging, draggedSubtitle, dragStart, PIXELS_PER_SECOND, subtitles, resizeHandle, updateSubtitle]);
+      setDragStart({ x: e.clientX, y: e.clientY });
+    },
+    [
+      isDragging,
+      draggedSubtitle,
+      dragStart,
+      PIXELS_PER_SECOND,
+      subtitles,
+      resizeHandle,
+      updateSubtitle,
+    ]
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -198,7 +234,10 @@ export function SubtitleTimeline() {
   // 키보드 단축키
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
         return; // 입력 필드에서는 무시
       }
 
@@ -216,7 +255,7 @@ export function SubtitleTimeline() {
         case "ArrowLeft":
           if (e.shiftKey && selectedSubtitleId) {
             // 자막을 0.1초 앞으로 이동
-            const subtitle = subtitles.find(s => s.id === selectedSubtitleId);
+            const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
             if (subtitle) {
               const duration = subtitle.endTime - subtitle.startTime;
               const newStartTime = Math.max(0, subtitle.startTime - 0.1);
@@ -231,7 +270,7 @@ export function SubtitleTimeline() {
         case "ArrowRight":
           if (e.shiftKey && selectedSubtitleId) {
             // 자막을 0.1초 뒤로 이동
-            const subtitle = subtitles.find(s => s.id === selectedSubtitleId);
+            const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
             if (subtitle) {
               const duration = subtitle.endTime - subtitle.startTime;
               const newStartTime = subtitle.startTime + 0.1;
@@ -261,7 +300,10 @@ export function SubtitleTimeline() {
     } else {
       // Scroll
       const scrollSpeed = 2;
-      const newOffset = Math.max(0, timelineOffset + (e.deltaY > 0 ? scrollSpeed : -scrollSpeed));
+      const newOffset = Math.max(
+        0,
+        timelineOffset + (e.deltaY > 0 ? scrollSpeed : -scrollSpeed)
+      );
       setTimelineOffset(newOffset);
     }
   };
@@ -277,7 +319,9 @@ export function SubtitleTimeline() {
         </h3>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Zoom:</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Zoom:
+            </span>
             <input
               type="range"
               min={0.5}
@@ -310,7 +354,10 @@ export function SubtitleTimeline() {
           {timeMarkers.major.map(({ time, x }) => (
             <div key={`major-${time}`} className="absolute" style={{ left: x }}>
               <div className="w-px h-5 bg-gray-400 dark:bg-gray-500"></div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 ml-1" style={{ marginTop: '2px' }}>
+              <div
+                className="text-xs text-gray-600 dark:text-gray-400 ml-1"
+                style={{ marginTop: "2px" }}
+              >
                 {formatTimelineTime(time)}
               </div>
             </div>
@@ -326,13 +373,18 @@ export function SubtitleTimeline() {
         {/* 자막 바들 */}
         {layers.map((layer, layerIndex) =>
           layer.map((subtitle) => {
-            const startX = (subtitle.startTime - timelineOffset) * PIXELS_PER_SECOND;
-            const width = (subtitle.endTime - subtitle.startTime) * PIXELS_PER_SECOND;
+            const startX =
+              (subtitle.startTime - timelineOffset) * PIXELS_PER_SECOND;
+            const width =
+              (subtitle.endTime - subtitle.startTime) * PIXELS_PER_SECOND;
             const y = 25 + layerIndex * (SUBTITLE_HEIGHT + SUBTITLE_MARGIN);
             const isSelected = selectedSubtitleId === subtitle.id;
 
             // 화면에 보이는 자막만 렌더링
-            if (startX + width < 0 || startX > (timelineRef.current?.clientWidth || 0)) {
+            if (
+              startX + width < 0 ||
+              startX > (timelineRef.current?.clientWidth || 0)
+            ) {
               return null;
             }
 
@@ -367,12 +419,16 @@ export function SubtitleTimeline() {
                     {/* 시작 핸들 */}
                     <div
                       className="absolute left-0 top-0 w-1 h-full bg-blue-700 cursor-ew-resize hover:bg-blue-600"
-                      onMouseDown={(e) => handleSubtitleMouseDown(e, subtitle.id, "start")}
+                      onMouseDown={(e) =>
+                        handleSubtitleMouseDown(e, subtitle.id, "start")
+                      }
                     ></div>
                     {/* 끝 핸들 */}
                     <div
                       className="absolute right-0 top-0 w-1 h-full bg-blue-700 cursor-ew-resize hover:bg-blue-600"
-                      onMouseDown={(e) => handleSubtitleMouseDown(e, subtitle.id, "end")}
+                      onMouseDown={(e) =>
+                        handleSubtitleMouseDown(e, subtitle.id, "end")
+                      }
                     ></div>
                   </>
                 )}
@@ -394,7 +450,9 @@ export function SubtitleTimeline() {
       </div>
 
       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-        <div>Ctrl/Cmd + Wheel: Zoom | Wheel: Scroll | Drag: Move/Resize Subtitles</div>
+        <div>
+          Ctrl/Cmd + Wheel: Zoom | Wheel: Scroll | Drag: Move/Resize Subtitles
+        </div>
         <div>Shift + ←/→: Move selected subtitle | Esc: Deselect</div>
       </div>
     </div>

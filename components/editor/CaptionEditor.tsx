@@ -4,10 +4,10 @@ import { VideoPlayer } from "./VideoPlayer";
 import { SubtitleTimeline } from "./SubtitleTimeline";
 import { SubtitleEditor } from "./SubtitleEditor";
 import { ToolBar } from "./ToolBar";
-import { useSubtitleStore } from "@/lib/stores/subtitle-store";
+import { useVideoStore } from "@/lib/stores/video-store";
 
 export function CaptionEditor() {
-  const { video } = useSubtitleStore();
+  const { video } = useVideoStore();
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
