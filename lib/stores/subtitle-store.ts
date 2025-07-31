@@ -86,11 +86,23 @@ export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
     })),
 
   updateSubtitle: (id, updates) =>
-    set((state) => ({
-      subtitles: state.subtitles.map((sub) =>
-        sub.id === id ? { ...sub, ...updates } : sub
-      ),
-    })),
+    set((state) => {
+      // 실제 변경사항이 있는지 체크하여 불필요한 업데이트 방지
+      const currentSubtitle = state.subtitles.find((sub) => sub.id === id);
+      if (!currentSubtitle) return state;
+
+      const hasChanges = Object.entries(updates).some(
+        ([key, value]) => currentSubtitle[key as keyof SubtitleItem] !== value
+      );
+
+      if (!hasChanges) return state;
+
+      return {
+        subtitles: state.subtitles.map((sub) =>
+          sub.id === id ? { ...sub, ...updates } : sub
+        ),
+      };
+    }),
 
   deleteSubtitle: (id) =>
     set((state) => ({

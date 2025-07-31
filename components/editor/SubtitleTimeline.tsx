@@ -1,9 +1,123 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
 import { useVideoStore } from "@/lib/stores/video-store";
 import type { SubtitleItem } from "@/lib/stores/subtitle-store";
+
+// 개별 자막 바 컴포넌트 (메모이제이션)
+const SubtitleBar = memo(
+  ({
+    subtitle,
+    isSelected,
+    isDragging,
+    timelineOffset,
+    PIXELS_PER_SECOND,
+    SUBTITLE_HEIGHT,
+    layerIndex,
+    SUBTITLE_MARGIN,
+    tempPosition,
+    onMouseDown,
+    onResizeHandleMouseDown,
+  }: {
+    subtitle: SubtitleItem;
+    isSelected: boolean;
+    isDragging: boolean;
+    timelineOffset: number;
+    PIXELS_PER_SECOND: number;
+    SUBTITLE_HEIGHT: number;
+    layerIndex: number;
+    SUBTITLE_MARGIN: number;
+    tempPosition?: { startTime: number; endTime: number } | null;
+    onMouseDown: (e: React.MouseEvent, subtitleId: string) => void;
+    onResizeHandleMouseDown: (
+      e: React.MouseEvent,
+      subtitleId: string,
+      handle: "start" | "end"
+    ) => void;
+  }) => {
+    // 드래그 중이면 임시 위치 사용, 아니면 원래 위치 사용
+    const effectiveStartTime = tempPosition?.startTime ?? subtitle.startTime;
+    const effectiveEndTime = tempPosition?.endTime ?? subtitle.endTime;
+
+    const startX = (effectiveStartTime - timelineOffset) * PIXELS_PER_SECOND;
+    const width = (effectiveEndTime - effectiveStartTime) * PIXELS_PER_SECOND;
+    const y = 25 + layerIndex * (SUBTITLE_HEIGHT + SUBTITLE_MARGIN);
+
+    const handleMainMouseDown = useCallback(
+      (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onMouseDown(e, subtitle.id);
+      },
+      [onMouseDown, subtitle.id]
+    );
+
+    const handleStartHandleMouseDown = useCallback(
+      (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onResizeHandleMouseDown(e, subtitle.id, "start");
+      },
+      [onResizeHandleMouseDown, subtitle.id]
+    );
+
+    const handleEndHandleMouseDown = useCallback(
+      (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onResizeHandleMouseDown(e, subtitle.id, "end");
+      },
+      [onResizeHandleMouseDown, subtitle.id]
+    );
+
+    return (
+      <div
+        className={`absolute rounded cursor-pointer border text-white text-xs overflow-hidden group select-none transform-gpu ${
+          isSelected
+            ? "bg-blue-500 border-blue-700 shadow-lg z-10"
+            : "bg-gray-500 hover:bg-gray-600 border-gray-600 hover:shadow-md hover:z-10"
+        } ${isDragging ? "opacity-90 shadow-xl" : ""}`}
+        style={{
+          left: Math.max(0, startX),
+          top: y,
+          width: startX < 0 ? width + startX : Math.max(width, 2),
+          height: SUBTITLE_HEIGHT,
+          pointerEvents: "auto",
+          willChange: isDragging ? "transform, left, width" : "auto",
+          transition: isDragging ? "none" : "all 0.1s ease",
+          backfaceVisibility: "hidden", // GPU 가속 최적화
+          perspective: 1000, // 3D 가속 활성화
+        }}
+        onMouseDown={handleMainMouseDown}
+        title={subtitle.text}
+      >
+        {/* 자막 텍스트 */}
+        <div className="px-2 py-1 truncate h-full flex items-center pointer-events-none">
+          {subtitle.text.length > 15
+            ? subtitle.text.substring(0, 15) + "..."
+            : subtitle.text}
+        </div>
+
+        {/* 리사이즈 핸들 (선택된 자막만) */}
+        {isSelected && (
+          <>
+            <div
+              className="absolute left-0 top-0 w-1 h-full bg-blue-700 cursor-ew-resize hover:bg-blue-600 z-20"
+              onMouseDown={handleStartHandleMouseDown}
+            />
+            <div
+              className="absolute right-0 top-0 w-1 h-full bg-blue-700 cursor-ew-resize hover:bg-blue-600 z-20"
+              onMouseDown={handleEndHandleMouseDown}
+            />
+          </>
+        )}
+      </div>
+    );
+  }
+);
+
+SubtitleBar.displayName = "SubtitleBar";
 
 export function SubtitleTimeline() {
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -28,7 +142,20 @@ export function SubtitleTimeline() {
   const [resizeHandle, setResizeHandle] = useState<"start" | "end" | null>(
     null
   );
+  const [tempSubtitlePosition, setTempSubtitlePosition] = useState<{
+    id: string;
+    startTime: number;
+    endTime: number;
+  } | null>(null);
+  const [originalSubtitlePosition, setOriginalSubtitlePosition] = useState<{
+    startTime: number;
+    endTime: number;
+  } | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const dragUpdateFrameRef = useRef<number | null>(null);
+  const handleMouseMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const handleMouseUpRef = useRef<(() => void) | null>(null);
+  const lastDragUpdateRef = useRef<number>(0);
 
   // Timeline scaling constants
   const PIXELS_PER_SECOND = 50 * timelineScale;
@@ -60,6 +187,9 @@ export function SubtitleTimeline() {
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (dragUpdateFrameRef.current) {
+        cancelAnimationFrame(dragUpdateFrameRef.current);
       }
     };
   }, [video.currentTime, video.isPlaying, timelineOffset, PIXELS_PER_SECOND]);
@@ -95,8 +225,8 @@ export function SubtitleTimeline() {
     return timelineOffset + x / PIXELS_PER_SECOND;
   };
 
-  // 시간 눈금 생성
-  const generateTimeMarkers = () => {
+  // 시간 눈금 생성 (메모이제이션)
+  const timeMarkers = useMemo(() => {
     const timelineRect = timelineRef.current?.getBoundingClientRect();
     if (!timelineRect) return { major: [], minor: [] };
 
@@ -131,13 +261,11 @@ export function SubtitleTimeline() {
     }
 
     return { major: majorMarkers, minor: minorMarkers };
-  };
+  }, [timelineOffset, PIXELS_PER_SECOND, timelineScale]);
 
-  // 자막을 레이어별로 배치
-  const arrangeSubtitlesInLayers = (
-    subtitles: SubtitleItem[]
-  ): SubtitleItem[][] => {
-    const layers: SubtitleItem[][] = [];
+  // 자막을 레이어별로 배치 (메모이제이션)
+  const layers = useMemo(() => {
+    const arrangedLayers: SubtitleItem[][] = [];
     const sortedSubtitles = [...subtitles].sort(
       (a, b) => a.startTime - b.startTime
     );
@@ -145,8 +273,8 @@ export function SubtitleTimeline() {
     sortedSubtitles.forEach((subtitle) => {
       let placed = false;
 
-      for (let i = 0; i < layers.length; i++) {
-        const layer = layers[i];
+      for (let i = 0; i < arrangedLayers.length; i++) {
+        const layer = arrangedLayers[i];
         const lastSubtitle = layer[layer.length - 1];
 
         if (!lastSubtitle || lastSubtitle.endTime <= subtitle.startTime) {
@@ -157,12 +285,28 @@ export function SubtitleTimeline() {
       }
 
       if (!placed) {
-        layers.push([subtitle]);
+        arrangedLayers.push([subtitle]);
       }
     });
 
-    return layers;
-  };
+    return arrangedLayers;
+  }, [subtitles]);
+
+  // 화면에 보이는 자막만 필터링 (가상화)
+  const visibleSubtitles = useMemo(() => {
+    const timelineWidth = timelineRef.current?.clientWidth || 1000;
+    const visibleStartTime = timelineOffset - 1; // 1초 여유분
+    const visibleEndTime =
+      timelineOffset + timelineWidth / PIXELS_PER_SECOND + 1; // 1초 여유분
+
+    return layers.map((layer) =>
+      layer.filter(
+        (subtitle) =>
+          subtitle.endTime >= visibleStartTime &&
+          subtitle.startTime <= visibleEndTime
+      )
+    );
+  }, [layers, timelineOffset, PIXELS_PER_SECOND]);
 
   const handleTimelineClick = (e: React.MouseEvent) => {
     const rect = timelineRef.current?.getBoundingClientRect();
@@ -174,78 +318,129 @@ export function SubtitleTimeline() {
     setCurrentTime(clampedTime);
   };
 
-  const handleSubtitleMouseDown = (
-    e: React.MouseEvent,
-    subtitleId: string,
-    handle?: "start" | "end"
-  ) => {
-    e.stopPropagation();
-    setIsDragging(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
-    setDraggedSubtitle(subtitleId);
-    setResizeHandle(handle || null);
-    selectSubtitle(subtitleId);
-  };
+  const handleSubtitleMouseDown = useCallback(
+    (e: React.MouseEvent, subtitleId: string, handle?: "start" | "end") => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const subtitle = subtitles.find((s) => s.id === subtitleId);
+      if (!subtitle) return;
+
+      setIsDragging(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+      setDraggedSubtitle(subtitleId);
+      setResizeHandle(handle || null);
+      setOriginalSubtitlePosition({
+        startTime: subtitle.startTime,
+        endTime: subtitle.endTime,
+      });
+      selectSubtitle(subtitleId);
+    },
+    [subtitles, selectSubtitle]
+  );
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!isDragging || !draggedSubtitle) return;
+      if (!isDragging || !draggedSubtitle || !originalSubtitlePosition) return;
+
+      // throttling: 고성능으로 더 자주 업데이트 (120fps)
+      const now = performance.now();
+      if (now - lastDragUpdateRef.current < 8) return;
+      lastDragUpdateRef.current = now;
 
       const deltaX = e.clientX - dragStart.x;
       const deltaTime = deltaX / PIXELS_PER_SECOND;
 
-      const subtitle = subtitles.find((s) => s.id === draggedSubtitle);
-      if (!subtitle) return;
+      let newStartTime: number;
+      let newEndTime: number;
 
       if (resizeHandle === "start") {
-        const newStartTime = Math.max(0, subtitle.startTime + deltaTime);
-        if (newStartTime < subtitle.endTime) {
-          updateSubtitle(subtitle.id, { startTime: newStartTime });
+        newStartTime = Math.max(
+          0,
+          originalSubtitlePosition.startTime + deltaTime
+        );
+        newEndTime = originalSubtitlePosition.endTime;
+        if (newStartTime >= newEndTime) {
+          newStartTime = newEndTime - 0.1;
         }
       } else if (resizeHandle === "end") {
-        const newEndTime = Math.max(
-          subtitle.startTime + 0.1,
-          subtitle.endTime + deltaTime
+        newStartTime = originalSubtitlePosition.startTime;
+        newEndTime = Math.max(
+          originalSubtitlePosition.startTime + 0.1,
+          originalSubtitlePosition.endTime + deltaTime
         );
-        updateSubtitle(subtitle.id, { endTime: newEndTime });
       } else {
-        const duration = subtitle.endTime - subtitle.startTime;
-        const newStartTime = Math.max(0, subtitle.startTime + deltaTime);
-        updateSubtitle(subtitle.id, {
-          startTime: newStartTime,
-          endTime: newStartTime + duration,
-        });
+        const duration =
+          originalSubtitlePosition.endTime - originalSubtitlePosition.startTime;
+        newStartTime = Math.max(
+          0,
+          originalSubtitlePosition.startTime + deltaTime
+        );
+        newEndTime = newStartTime + duration;
       }
 
-      setDragStart({ x: e.clientX, y: e.clientY });
+      // React 상태를 직접 동기적으로 업데이트 (빠른 응답성)
+      setTempSubtitlePosition({
+        id: draggedSubtitle,
+        startTime: newStartTime,
+        endTime: newEndTime,
+      });
     },
     [
       isDragging,
       draggedSubtitle,
-      dragStart,
+      dragStart.x,
       PIXELS_PER_SECOND,
-      subtitles,
       resizeHandle,
-      updateSubtitle,
+      originalSubtitlePosition,
     ]
   );
 
   const handleMouseUp = useCallback(() => {
+    // 드래그 완료 시에만 스토어 업데이트
+    if (tempSubtitlePosition && draggedSubtitle) {
+      updateSubtitle(draggedSubtitle, {
+        startTime: tempSubtitlePosition.startTime,
+        endTime: tempSubtitlePosition.endTime,
+      });
+    }
+
+    // 상태 초기화
     setIsDragging(false);
     setDraggedSubtitle(null);
     setResizeHandle(null);
-  }, []);
+    setTempSubtitlePosition(null);
+    setOriginalSubtitlePosition(null);
+
+    // 애니메이션 프레임 정리
+    if (dragUpdateFrameRef.current) {
+      cancelAnimationFrame(dragUpdateFrameRef.current);
+      dragUpdateFrameRef.current = null;
+    }
+  }, [tempSubtitlePosition, draggedSubtitle, updateSubtitle]);
+
+  // handleMouseMove와 handleMouseUp을 ref에 저장
+  handleMouseMoveRef.current = handleMouseMove;
+  handleMouseUpRef.current = handleMouseUp;
 
   useEffect(() => {
     if (isDragging) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
+      const mouseMoveHandler = (e: MouseEvent) => {
+        handleMouseMoveRef.current?.(e);
+      };
+      const mouseUpHandler = () => {
+        handleMouseUpRef.current?.();
+      };
+
+      document.addEventListener("mousemove", mouseMoveHandler);
+      document.addEventListener("mouseup", mouseUpHandler);
+
       return () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
+        document.removeEventListener("mousemove", mouseMoveHandler);
+        document.removeEventListener("mouseup", mouseUpHandler);
       };
     }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  }, [isDragging]);
 
   // 키보드 단축키
   useEffect(() => {
@@ -401,9 +596,6 @@ export function SubtitleTimeline() {
     setTimelineOffset,
   ]);
 
-  const layers = arrangeSubtitlesInLayers(subtitles);
-  const timeMarkers = generateTimeMarkers();
-
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
@@ -468,68 +660,34 @@ export function SubtitleTimeline() {
         </div>
 
         {/* 자막 바들 */}
-        {layers.map((layer, layerIndex) =>
+        {visibleSubtitles.map((layer, layerIndex) =>
           layer.map((subtitle) => {
-            const startX =
-              (subtitle.startTime - timelineOffset) * PIXELS_PER_SECOND;
-            const width =
-              (subtitle.endTime - subtitle.startTime) * PIXELS_PER_SECOND;
-            const y = 25 + layerIndex * (SUBTITLE_HEIGHT + SUBTITLE_MARGIN);
             const isSelected = selectedSubtitleId === subtitle.id;
 
-            // 화면에 보이는 자막만 렌더링
-            if (
-              startX + width < 0 ||
-              startX > (timelineRef.current?.clientWidth || 0)
-            ) {
-              return null;
-            }
-
             return (
-              <div
+              <SubtitleBar
                 key={subtitle.id}
-                className={`absolute rounded cursor-pointer transition-all duration-150 border text-white text-xs overflow-hidden group ${
-                  isSelected
-                    ? "bg-blue-500 border-blue-700 shadow-lg z-10"
-                    : "bg-gray-500 hover:bg-gray-600 border-gray-600 hover:shadow-md hover:z-10"
-                }`}
-                style={{
-                  left: Math.max(0, startX),
-                  top: y,
-                  width: startX < 0 ? width + startX : width,
-                  height: SUBTITLE_HEIGHT,
-                  minWidth: 1,
-                }}
-                onMouseDown={(e) => handleSubtitleMouseDown(e, subtitle.id)}
-                title={subtitle.text} // 툴팁으로 전체 텍스트 표시
-              >
-                {/* 자막 텍스트 */}
-                <div className="px-2 py-1 truncate h-full flex items-center">
-                  {subtitle.text.length > 15
-                    ? subtitle.text.substring(0, 15) + "..."
-                    : subtitle.text}
-                </div>
-
-                {/* 리사이즈 핸들 (선택된 자막만) */}
-                {isSelected && (
-                  <>
-                    {/* 시작 핸들 */}
-                    <div
-                      className="absolute left-0 top-0 w-1 h-full bg-blue-700 cursor-ew-resize hover:bg-blue-600"
-                      onMouseDown={(e) =>
-                        handleSubtitleMouseDown(e, subtitle.id, "start")
+                subtitle={subtitle}
+                isSelected={isSelected}
+                isDragging={isDragging && draggedSubtitle === subtitle.id}
+                timelineOffset={timelineOffset}
+                PIXELS_PER_SECOND={PIXELS_PER_SECOND}
+                SUBTITLE_HEIGHT={SUBTITLE_HEIGHT}
+                layerIndex={layerIndex}
+                SUBTITLE_MARGIN={SUBTITLE_MARGIN}
+                tempPosition={
+                  tempSubtitlePosition?.id === subtitle.id
+                    ? {
+                        startTime: tempSubtitlePosition.startTime,
+                        endTime: tempSubtitlePosition.endTime,
                       }
-                    ></div>
-                    {/* 끝 핸들 */}
-                    <div
-                      className="absolute right-0 top-0 w-1 h-full bg-blue-700 cursor-ew-resize hover:bg-blue-600"
-                      onMouseDown={(e) =>
-                        handleSubtitleMouseDown(e, subtitle.id, "end")
-                      }
-                    ></div>
-                  </>
-                )}
-              </div>
+                    : null
+                }
+                onMouseDown={handleSubtitleMouseDown}
+                onResizeHandleMouseDown={(e, id, handle) =>
+                  handleSubtitleMouseDown(e, id, handle)
+                }
+              />
             );
           })
         )}
