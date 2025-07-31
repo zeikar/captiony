@@ -8,7 +8,13 @@ import { TimelineControls } from "./components/TimelineControls";
 import { useSubtitleDrag } from "./hooks/useSubtitleDrag";
 import { useTimelineWheel } from "./hooks/useTimelineWheel";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { formatTime, getTimeFromX, getXFromTime } from "./utils/timelineUtils";
+import {
+  formatTime,
+  getTimeFromX,
+  getXFromTime,
+  arrangeSubtitlesInLayers,
+  findOverlappingSubtitles,
+} from "./utils/timelineUtils";
 import { useMemo, useCallback } from "react";
 
 export const SubtitleTimeline: React.FC = React.memo(() => {
@@ -30,7 +36,7 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
   // Constants
   const basePixelsPerSecond = 50;
   const pixelsPerSecond = basePixelsPerSecond * timelineScale;
-  const timelineHeight = 120;
+  const baseTimelineHeight = 120;
 
   // Custom hooks
   const { handleSubtitleMouseDown, isDragging, tempSubtitlePosition } =
@@ -46,6 +52,14 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     pixelsPerSecond
   );
   useKeyboardShortcuts();
+
+  // 자막을 레이어별로 배치
+  const subtitleLayers = useMemo(() => {
+    return arrangeSubtitlesInLayers(subtitles);
+  }, [subtitles]);
+
+  // 타임라인 높이를 레이어 수에 따라 동적으로 계산
+  const dynamicTimelineHeight = Math.max(120, 88 + subtitleLayers.length * 16);
 
   // 시간 눈금 생성
   const timeMarkers = useMemo(() => {
@@ -162,7 +176,7 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
       <div
         ref={timelineRef}
         className="relative bg-gray-800 cursor-pointer select-none"
-        style={{ height: `${timelineHeight}px` }}
+        style={{ height: `${dynamicTimelineHeight}px` }}
         onClick={handleTimelineClick}
         onDoubleClick={handleDoubleClick}
       >
@@ -191,37 +205,51 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
         {/* 자막 바들 */}
         <div
           className="absolute top-8 left-0 w-full"
-          style={{ height: `${timelineHeight - 32}px` }}
+          style={{ height: `${dynamicTimelineHeight - 32}px` }}
         >
-          {subtitles.map((subtitle) => {
-            // 드래그 중인 자막의 임시 위치 확인
-            const tempPos =
-              tempSubtitlePosition && tempSubtitlePosition.id === subtitle.id
-                ? {
-                    startTime: tempSubtitlePosition.startTime,
-                    endTime: tempSubtitlePosition.endTime,
-                  }
-                : null;
+          {subtitleLayers.map((layer, layerIndex) =>
+            layer.map((subtitle) => {
+              // 드래그 중인 자막의 임시 위치 확인
+              const tempPos =
+                tempSubtitlePosition && tempSubtitlePosition.id === subtitle.id
+                  ? {
+                      startTime: tempSubtitlePosition.startTime,
+                      endTime: tempSubtitlePosition.endTime,
+                    }
+                  : null;
 
-            return (
-              <SubtitleBar
-                key={subtitle.id}
-                subtitle={subtitle}
-                timelineOffset={timelineOffset}
-                pixelsPerSecond={pixelsPerSecond}
-                isSelected={subtitle.id === selectedSubtitleId}
-                tempPosition={tempPos}
-                onMouseDown={handleMouseDown}
-              />
-            );
-          })}
+              // 겹침 확인 (드래그 중이면 임시 위치 기준으로 확인)
+              const currentPosition = tempPos
+                ? { ...subtitle, ...tempPos }
+                : subtitle;
+              const overlappingSubtitles = findOverlappingSubtitles(
+                subtitles,
+                currentPosition
+              );
+              const hasOverlap = overlappingSubtitles.length > 0;
+
+              return (
+                <SubtitleBar
+                  key={subtitle.id}
+                  subtitle={subtitle}
+                  timelineOffset={timelineOffset}
+                  pixelsPerSecond={pixelsPerSecond}
+                  isSelected={subtitle.id === selectedSubtitleId}
+                  tempPosition={tempPos}
+                  layerIndex={layerIndex}
+                  hasOverlap={hasOverlap}
+                  onMouseDown={handleMouseDown}
+                />
+              );
+            })
+          )}
         </div>
 
         {/* 플레이헤드 */}
         <div
           className="absolute top-0 w-0.5 bg-red-500 pointer-events-none z-10"
           style={{
-            height: `${timelineHeight}px`,
+            height: `${dynamicTimelineHeight}px`,
             ...playheadStyle,
           }}
         >

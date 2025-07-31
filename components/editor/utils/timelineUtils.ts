@@ -74,6 +74,26 @@ export const generateTimeMarkers = (
   return { major: majorMarkers, minor: minorMarkers };
 };
 
+// 겹침 감지
+export const checkSubtitleOverlap = (
+  subtitle1: { startTime: number; endTime: number },
+  subtitle2: { startTime: number; endTime: number }
+): boolean => {
+  return subtitle1.startTime < subtitle2.endTime && subtitle2.startTime < subtitle1.endTime;
+};
+
+// 겹치는 자막들 찾기
+export const findOverlappingSubtitles = (
+  subtitles: SubtitleItem[],
+  targetSubtitle: SubtitleItem
+): SubtitleItem[] => {
+  return subtitles.filter(
+    (subtitle) =>
+      subtitle.id !== targetSubtitle.id &&
+      checkSubtitleOverlap(subtitle, targetSubtitle)
+  );
+};
+
 // 자막을 레이어별로 배치
 export const arrangeSubtitlesInLayers = (
   subtitles: SubtitleItem[]
