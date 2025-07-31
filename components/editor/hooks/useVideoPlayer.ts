@@ -6,16 +6,43 @@ const SYNC_THRESHOLD = 0.1; // 0.1초 이상 차이날 때만 동기화
 export function useVideoPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const isSeekingRef = useRef(false);
+  const animationFrameRef = useRef<number | null>(null);
 
-  const { video, setCurrentTime, setIsPlaying, setVideoDuration, setVolume } =
-    useVideoStore();
+  const {
+    video,
+    setCurrentTime,
+    setCurrentTimeSmooth,
+    setIsPlaying,
+    setVideoDuration,
+    setVolume,
+  } = useVideoStore();
+
+  // 부드러운 시간 업데이트를 위한 애니메이션 프레임 기반 업데이트
+  const updateCurrentTime = useCallback(() => {
+    if (!isSeekingRef.current && videoRef.current) {
+      const currentTime = videoRef.current.currentTime;
+      setCurrentTimeSmooth(currentTime); // 부드러운 업데이트 사용
+
+      // 비디오가 재생 중일 때만 연속 업데이트
+      if (!videoRef.current.paused) {
+        animationFrameRef.current = requestAnimationFrame(updateCurrentTime);
+      }
+    }
+  }, [setCurrentTimeSmooth]);
 
   // 비디오 이벤트 핸들러들
   const handleTimeUpdate = useCallback(() => {
-    if (!isSeekingRef.current && videoRef.current) {
+    // timeupdate 이벤트는 애니메이션 프레임 기반 업데이트를 시작하는 트리거로만 사용
+    if (!isSeekingRef.current && videoRef.current && !videoRef.current.paused) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      updateCurrentTime();
+    } else if (isSeekingRef.current && videoRef.current) {
+      // seeking 중일 때는 즉시 업데이트 (부드러운 업데이트 아님)
       setCurrentTime(videoRef.current.currentTime);
     }
-  }, [setCurrentTime]);
+  }, [setCurrentTime, updateCurrentTime]);
 
   const handleLoadedMetadata = useCallback(() => {
     const videoElement = videoRef.current;
@@ -41,11 +68,34 @@ export function useVideoPlayer() {
     }
   }, [video.currentTime]);
 
-  const handlePlay = useCallback(() => setIsPlaying(true), [setIsPlaying]);
-  const handlePause = useCallback(() => setIsPlaying(false), [setIsPlaying]);
+  const handlePlay = useCallback(() => {
+    setIsPlaying(true);
+    // 재생 시작 시 애니메이션 프레임 기반 업데이트 시작
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    updateCurrentTime();
+  }, [setIsPlaying, updateCurrentTime]);
+
+  const handlePause = useCallback(() => {
+    setIsPlaying(false);
+    // 일시정지 시 애니메이션 프레임 취소
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, [setIsPlaying]);
+
   const handleSeeked = useCallback(() => {
     isSeekingRef.current = false;
-  }, []);
+    // seek 완료 후 재생 중이면 애니메이션 재시작
+    if (videoRef.current && !videoRef.current.paused) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      updateCurrentTime();
+    }
+  }, [updateCurrentTime]);
 
   // 비디오 이벤트 리스너 설정
   useEffect(() => {
@@ -81,6 +131,15 @@ export function useVideoPlayer() {
     handlePause,
     handleSeeked,
   ]);
+
+  // 컴포넌트 언마운트 시 애니메이션 프레임 정리
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
 
   // 외부에서 currentTime 변경 시 동기화
   useEffect(() => {

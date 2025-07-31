@@ -28,7 +28,7 @@ export function SubtitleTimeline() {
   const [resizeHandle, setResizeHandle] = useState<"start" | "end" | null>(
     null
   );
-  const lastUpdateRef = useRef<number>(0);
+  const animationFrameRef = useRef<number | null>(null);
 
   // Timeline scaling constants
   const PIXELS_PER_SECOND = 50 * timelineScale;
@@ -36,17 +36,33 @@ export function SubtitleTimeline() {
   const SUBTITLE_HEIGHT = 30;
   const SUBTITLE_MARGIN = 2;
 
-  // 현재 시간 라인 위치 업데이트 (throttled)
+  // 현재 시간 라인 위치 업데이트 (requestAnimationFrame 사용)
   useEffect(() => {
-    const now = Date.now();
-    if (now - lastUpdateRef.current < 16) return; // 60fps 제한
-    lastUpdateRef.current = now;
+    const updateTimelinePosition = () => {
+      if (currentTimeLineRef.current) {
+        const x = (video.currentTime - timelineOffset) * PIXELS_PER_SECOND;
+        // transform3d를 사용하여 GPU 가속 적용
+        currentTimeLineRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
+      }
 
-    if (currentTimeLineRef.current) {
-      const x = (video.currentTime - timelineOffset) * PIXELS_PER_SECOND;
-      currentTimeLineRef.current.style.transform = `translateX(${x}px)`;
-    }
-  }, [video.currentTime, timelineOffset, PIXELS_PER_SECOND]);
+      // 비디오가 재생 중일 때만 연속 업데이트
+      if (video.isPlaying) {
+        animationFrameRef.current = requestAnimationFrame(
+          updateTimelinePosition
+        );
+      }
+    };
+
+    // 즉시 한 번 업데이트
+    updateTimelinePosition();
+
+    // cleanup
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [video.currentTime, video.isPlaying, timelineOffset, PIXELS_PER_SECOND]);
 
   // 자동 스크롤 (별도로 처리)
   useEffect(() => {
@@ -303,15 +319,15 @@ export function SubtitleTimeline() {
         const rect = timelineElement.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseTime = getTimeFromX(mouseX);
-        
+
         const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1; // 줌 속도도 조금 줄임
         const newScale = Math.max(0.5, Math.min(5, timelineScale * zoomFactor));
-        
+
         // 마우스 위치를 중심으로 줌하도록 오프셋 조정
         const newMouseTime = mouseTime;
         const newMouseX = mouseX;
-        const newOffset = newMouseTime - (newMouseX / (50 * newScale));
-        
+        const newOffset = newMouseTime - newMouseX / (50 * newScale);
+
         setTimelineScale(newScale);
         setTimelineOffset(Math.max(0, newOffset));
       } else {
@@ -321,7 +337,7 @@ export function SubtitleTimeline() {
         // 델타 값을 정규화 (다양한 브라우저/디바이스 호환성)
         let deltaY = e.deltaY;
         let deltaX = e.deltaX;
-        
+
         if (e.deltaMode === 1) {
           // DOM_DELTA_LINE
           deltaY *= 33;
@@ -335,18 +351,18 @@ export function SubtitleTimeline() {
         // 스크롤 속도 조정 (좀 더 느리게)
         const baseScrollSpeed = 1; // 기본 스크롤 속도 (3에서 1로 줄임)
         const fastScrollThreshold = 100; // 빠른 스크롤 임계값
-        
+
         // 주 스크롤 방향 결정 (deltaY가 더 크면 세로 스크롤, deltaX가 더 크면 가로 스크롤)
         const isDeltaYDominant = Math.abs(deltaY) > Math.abs(deltaX);
         const primaryDelta = isDeltaYDominant ? deltaY : deltaX;
-        
+
         let scrollSpeed;
         if (Math.abs(primaryDelta) > fastScrollThreshold) {
           scrollSpeed = baseScrollSpeed * 1.5; // 빠른 스크롤 (2에서 1.5로 줄임)
         } else {
           scrollSpeed = baseScrollSpeed; // 일반 스크롤
         }
-        
+
         // 세로 스크롤 또는 가로 스크롤이 없을 때는 세로를 가로로 변환
         let scrollDirection;
         if (deltaX !== 0) {
@@ -356,23 +372,34 @@ export function SubtitleTimeline() {
           // 세로 스크롤을 가로 스크롤로 변환
           scrollDirection = deltaY > 0 ? 1 : -1;
         }
-        
+
         const scrollTime = scrollSpeed * scrollDirection;
-        
+
         const newOffset = Math.max(0, timelineOffset + scrollTime);
-        const maxOffset = Math.max(0, (video.duration || 0) - rect.width / PIXELS_PER_SECOND);
-        
+        const maxOffset = Math.max(
+          0,
+          (video.duration || 0) - rect.width / PIXELS_PER_SECOND
+        );
+
         setTimelineOffset(Math.min(newOffset, maxOffset));
       }
     };
 
     // non-passive 이벤트 리스너로 등록
-    timelineElement.addEventListener('wheel', handleWheel, { passive: false });
+    timelineElement.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
-      timelineElement.removeEventListener('wheel', handleWheel);
+      timelineElement.removeEventListener("wheel", handleWheel);
     };
-  }, [timelineOffset, timelineScale, getTimeFromX, PIXELS_PER_SECOND, video.duration, setTimelineScale, setTimelineOffset]);
+  }, [
+    timelineOffset,
+    timelineScale,
+    getTimeFromX,
+    PIXELS_PER_SECOND,
+    video.duration,
+    setTimelineScale,
+    setTimelineOffset,
+  ]);
 
   const layers = arrangeSubtitlesInLayers(subtitles);
   const timeMarkers = generateTimeMarkers();
@@ -407,10 +434,10 @@ export function SubtitleTimeline() {
       <div
         ref={timelineRef}
         className="relative border border-gray-300 dark:border-gray-600 rounded overflow-hidden cursor-pointer select-none"
-        style={{ 
+        style={{
           height: TIMELINE_HEIGHT,
-          touchAction: 'none', // 터치 스크롤 방지
-          userSelect: 'none'    // 텍스트 선택 방지
+          touchAction: "none", // 터치 스크롤 방지
+          userSelect: "none", // 텍스트 선택 방지
         }}
         onClick={handleTimelineClick}
         tabIndex={0} // 키보드 포커스 가능하도록
@@ -510,8 +537,11 @@ export function SubtitleTimeline() {
         {/* 현재 시간 라인 */}
         <div
           ref={currentTimeLineRef}
-          className="absolute top-0 w-0.5 bg-red-500 pointer-events-none"
-          style={{ height: TIMELINE_HEIGHT }}
+          className="absolute top-0 w-0.5 bg-red-500 pointer-events-none transition-transform duration-75 ease-linear"
+          style={{
+            height: TIMELINE_HEIGHT,
+            willChange: "transform", // GPU 가속을 위한 힌트
+          }}
         >
           <div className="absolute -bottom-4 -left-8 text-xs text-red-500 font-bold whitespace-nowrap">
             {formatTimelineTime(video.currentTime)}
@@ -521,7 +551,8 @@ export function SubtitleTimeline() {
 
       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
         <div>
-          Ctrl/Cmd + Wheel: Zoom (around mouse cursor) | Wheel (↕/↔): Scroll timeline | Drag: Move/Resize Subtitles
+          Ctrl/Cmd + Wheel: Zoom (around mouse cursor) | Wheel (↕/↔): Scroll
+          timeline | Drag: Move/Resize Subtitles
         </div>
         <div>Shift + ←/→: Move selected subtitle | Esc: Deselect</div>
       </div>
