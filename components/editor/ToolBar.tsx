@@ -5,7 +5,6 @@ import {
   CloudArrowUpIcon,
   DocumentArrowDownIcon,
   FolderOpenIcon,
-  PlusIcon,
 } from "@heroicons/react/24/outline";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
 import { useVideoStore } from "@/lib/stores/video-store";
@@ -15,8 +14,8 @@ export function ToolBar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const srtInputRef = useRef<HTMLInputElement>(null);
 
-  const { addSubtitle, exportSRT, importSRT } = useSubtitleStore();
-  const { setVideoUrl, video } = useVideoStore();
+  const { exportSRT, importSRT } = useSubtitleStore();
+  const { setVideoUrl } = useVideoStore();
 
   const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -44,23 +43,14 @@ export function ToolBar() {
     saveAs(blob, "subtitles.srt");
   };
 
-  const handleAddSubtitle = () => {
-    const currentTime = video.currentTime;
-    addSubtitle({
-      startTime: currentTime,
-      endTime: currentTime + 3, // 3초 길이
-      text: "Enter new subtitle text",
-    });
-  };
-
   return (
-    <div className="flex flex-wrap gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+    <div className="flex items-center gap-3">
       {/* Upload Video */}
       <button
         onClick={() => fileInputRef.current?.click()}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
       >
-        <CloudArrowUpIcon className="h-5 w-5" />
+        <CloudArrowUpIcon className="h-4 w-4" />
         Upload Video
       </button>
       <input
@@ -74,9 +64,9 @@ export function ToolBar() {
       {/* Load Subtitles */}
       <button
         onClick={() => srtInputRef.current?.click()}
-        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
       >
-        <FolderOpenIcon className="h-5 w-5" />
+        <FolderOpenIcon className="h-4 w-4" />
         Load Subtitles
       </button>
       <input
@@ -87,21 +77,12 @@ export function ToolBar() {
         className="hidden"
       />
 
-      {/* Add Subtitle */}
-      <button
-        onClick={handleAddSubtitle}
-        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-      >
-        <PlusIcon className="h-5 w-5" />
-        Add Subtitle
-      </button>
-
       {/* Export SRT */}
       <button
         onClick={handleExportSRT}
-        className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors text-sm"
       >
-        <DocumentArrowDownIcon className="h-5 w-5" />
+        <DocumentArrowDownIcon className="h-4 w-4" />
         Export SRT
       </button>
     </div>

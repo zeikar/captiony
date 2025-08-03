@@ -26,14 +26,16 @@ export function VideoPlayer() {
   );
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl overflow-hidden">
       {/* 비디오 영역 */}
-      <VideoArea
-        videoRef={videoRef}
-        videoUrl={video.url}
-        currentSubtitle={currentSubtitle}
-        onVideoClick={togglePlay}
-      />
+      <div className="flex-1">
+        <VideoArea
+          videoRef={videoRef}
+          videoUrl={video.url}
+          currentSubtitle={currentSubtitle}
+          onVideoClick={togglePlay}
+        />
+      </div>
 
       {/* 컨트롤 바 */}
       <div className="bg-gray-50 dark:bg-gray-800 p-4 space-y-4 border-t border-gray-200 dark:border-gray-700">
