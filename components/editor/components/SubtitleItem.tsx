@@ -76,6 +76,13 @@ export function SubtitleItem({
 
   const duration = subtitle.endTime - subtitle.startTime;
 
+  const handleContainerClick = (e: React.MouseEvent) => {
+    // 편집 모드가 아닐 때만 선택 가능
+    if (!isEditing) {
+      onSelect();
+    }
+  };
+
   return (
     <div
       className={`group relative rounded-xl p-4 cursor-pointer transition-all duration-200 border-2 ${
@@ -83,15 +90,21 @@ export function SubtitleItem({
           ? "border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 shadow-lg scale-[1.02]"
           : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-blue-300 hover:shadow-md hover:scale-[1.01]"
       }`}
-      onClick={onSelect}
+      onClick={handleContainerClick}
     >
       {/* Index badge - now inside the item */}
-      <div className="absolute -top-2 -left-2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg z-10">
+      <div
+        className="absolute -top-2 -left-2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg z-10 cursor-pointer"
+        onClick={() => !isEditing && onSelect()}
+      >
         {index}
       </div>
 
       {/* Header with timing info */}
-      <div className="flex items-center justify-between mb-3 pt-1">
+      <div
+        className="flex items-center justify-between mb-3 pt-1 cursor-pointer"
+        onClick={() => !isEditing && onSelect()}
+      >
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-400">
             <ClockIcon className="h-4 w-4" />
@@ -130,7 +143,15 @@ export function SubtitleItem({
       </div>
 
       {/* Time inputs for editing */}
-      <div className="flex items-center gap-2 mb-3">
+      <div
+        className="flex items-center gap-2 mb-3"
+        onClick={(e) => {
+          // input이 아닌 영역을 클릭했을 때만 선택
+          if (!isEditing && e.target === e.currentTarget) {
+            onSelect();
+          }
+        }}
+      >
         <div className="flex items-center gap-1">
           <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
             Start:
@@ -182,7 +203,10 @@ export function SubtitleItem({
             </div>
           </div>
         ) : (
-          <p className="text-gray-900 dark:text-white leading-relaxed min-h-[1.5rem]">
+          <p
+            className="text-gray-900 dark:text-white leading-relaxed min-h-[1.5rem] cursor-pointer"
+            onClick={() => !isEditing && onSelect()}
+          >
             {subtitle.text || (
               <span className="text-gray-400 italic">No text</span>
             )}
@@ -192,20 +216,31 @@ export function SubtitleItem({
 
       {/* Action Buttons */}
       <div
-        className="flex items-center justify-end gap-1"
-        onClick={(e) => e.stopPropagation()}
+        className="flex items-center justify-end gap-1 min-h-[2rem]"
+        onClick={(e) => {
+          // 버튼이 아닌 빈 공간을 클릭했을 때만 선택
+          if (e.target === e.currentTarget && !isEditing) {
+            onSelect();
+          }
+        }}
       >
         {isEditing ? (
           <>
             <button
-              onClick={handleSaveClick}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSaveClick();
+              }}
               className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors shadow-md hover:shadow-lg"
             >
               <CheckIcon className="h-4 w-4" />
               Save
             </button>
             <button
-              onClick={onCancel}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancel();
+              }}
               className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <XMarkIcon className="h-4 w-4" />
@@ -215,14 +250,20 @@ export function SubtitleItem({
         ) : (
           <>
             <button
-              onClick={() => onEdit(subtitle)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(subtitle);
+              }}
               className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
             >
               <PencilIcon className="h-4 w-4" />
               Edit
             </button>
             <button
-              onClick={onDelete}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
               className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
             >
               <TrashIcon className="h-4 w-4" />
