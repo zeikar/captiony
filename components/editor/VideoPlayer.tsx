@@ -28,7 +28,7 @@ export function VideoPlayer() {
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl overflow-hidden">
       {/* 비디오 영역 */}
-      <div className="flex-1">
+      <div className="flex-1 min-h-0">
         <VideoArea
           videoRef={videoRef}
           videoUrl={video.url}
@@ -38,7 +38,7 @@ export function VideoPlayer() {
       </div>
 
       {/* 컨트롤 바 */}
-      <div className="bg-gray-50 dark:bg-gray-800 p-4 space-y-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-800 p-4 space-y-4 border-t border-gray-200 dark:border-gray-700">
         {/* 프로그레스 바 */}
         <ProgressBar
           currentTime={video.currentTime}

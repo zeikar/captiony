@@ -20,7 +20,7 @@ export function VideoArea({
         <video
           ref={videoRef}
           src={videoUrl}
-          className="w-full h-full object-contain rounded-t-xl"
+          className="w-full max-h-full object-contain rounded-t-xl"
           onClick={onVideoClick}
         />
       ) : (
@@ -41,7 +41,7 @@ export function VideoArea({
 
       {/* 자막 오버레이 */}
       {currentSubtitle && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg max-w-xs text-center font-medium shadow-lg border border-white/20">
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg max-w-xs text-center font-medium shadow-lg border border-white/20">
           {currentSubtitle.text}
         </div>
       )}
