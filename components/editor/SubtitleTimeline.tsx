@@ -70,32 +70,81 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     const endTime = timelineOffset + timelineWidth / pixelsPerSecond;
     const markers = [];
 
-    // 간격 결정 (줌 레벨에 따라)
-    let interval = 1;
-    if (timelineScale < 0.5) {
-      interval = 10;
+    // 줌 레벨에 따른 간격과 레이블 표시 간격 결정
+    let majorInterval = 1; // 주요 눈금 (초 단위)
+    let minorInterval = 0.5; // 보조 눈금
+    let labelInterval = 1; // 레이블 표시 간격
+
+    if (timelineScale < 0.3) {
+      majorInterval = 30;
+      minorInterval = 10;
+      labelInterval = 30;
+    } else if (timelineScale < 0.6) {
+      majorInterval = 10;
+      minorInterval = 5;
+      labelInterval = 10;
     } else if (timelineScale < 1) {
-      interval = 5;
-    } else if (timelineScale > 3) {
-      interval = 0.5;
+      majorInterval = 5;
+      minorInterval = 1;
+      labelInterval = 5;
+    } else if (timelineScale < 2) {
+      majorInterval = 1;
+      minorInterval = 0.5;
+      labelInterval = 2; // 2초마다 레이블 표시
+    } else if (timelineScale < 4) {
+      majorInterval = 1;
+      minorInterval = 0.5;
+      labelInterval = 1;
+    } else {
+      majorInterval = 0.5;
+      minorInterval = 0.1;
+      labelInterval = 1;
     }
 
-    const startMarker = Math.floor(startTime / interval) * interval;
-    const endMarker = Math.ceil(endTime / interval) * interval;
+    // 주요 눈금 생성
+    const startMajor = Math.floor(startTime / majorInterval) * majorInterval;
+    const endMajor = Math.ceil(endTime / majorInterval) * majorInterval;
 
-    for (let time = startMarker; time <= endMarker; time += interval) {
+    for (let time = startMajor; time <= endMajor; time += majorInterval) {
       const x = getXFromTime(time, timelineOffset, pixelsPerSecond);
-      if (x >= -50 && x <= timelineWidth + 50) {
+      if (x >= -100 && x <= timelineWidth + 100) {
+        const shouldShowLabel = time % labelInterval === 0;
         markers.push({
           time,
           x,
           label: formatTime(time),
-          isSecond: time % 1 === 0,
+          isSecond: true,
+          isMajor: true,
+          showLabel: shouldShowLabel,
         });
       }
     }
 
-    return markers;
+    // 보조 눈금 생성 (줌이 충분할 때만)
+    if (timelineScale >= 1) {
+      const startMinor = Math.floor(startTime / minorInterval) * minorInterval;
+      const endMinor = Math.ceil(endTime / minorInterval) * minorInterval;
+
+      for (let time = startMinor; time <= endMinor; time += minorInterval) {
+        const x = getXFromTime(time, timelineOffset, pixelsPerSecond);
+        if (x >= -50 && x <= timelineWidth + 50) {
+          // 주요 눈금과 겹치지 않는 경우만 추가
+          const isNotMajor = time % majorInterval !== 0;
+          if (isNotMajor) {
+            markers.push({
+              time,
+              x,
+              label: formatTime(time),
+              isSecond: false,
+              isMajor: false,
+              showLabel: false,
+            });
+          }
+        }
+      }
+    }
+
+    return markers.sort((a, b) => a.time - b.time);
   }, [timelineOffset, pixelsPerSecond, timelineScale]);
 
   // 현재 재생 위치 플레이헤드 스타일
@@ -155,7 +204,7 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
   );
 
   return (
-    <div className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700">
+    <div className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700 overflow-hidden">
       {/* 컨트롤 바 */}
       <TimelineControls
         timelineScale={timelineScale}
@@ -184,19 +233,37 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
         <div className="absolute top-0 left-0 w-full h-8 border-b border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900">
           {timeMarkers.map((marker, index) => (
             <div
-              key={index}
+              key={`${marker.time}-${index}`}
               className="absolute top-0"
               style={{ left: `${marker.x}px` }}
             >
+              {/* 주요 눈금에는 전체 높이 그리드 라인 */}
+              {marker.isMajor && (
+                <div
+                  className="absolute top-0 w-px bg-gray-300 dark:bg-gray-600 opacity-40"
+                  style={{ height: `${dynamicTimelineHeight}px` }}
+                />
+              )}
+
+              {/* 눈금 표시 */}
               <div
-                className={`w-px ${
-                  marker.isSecond
-                    ? "bg-gray-500 dark:bg-gray-400 h-6"
-                    : "bg-gray-300 dark:bg-gray-600 h-3"
+                className={`w-px relative z-10 ${
+                  marker.isMajor
+                    ? "bg-gray-600 dark:bg-gray-400 h-8"
+                    : "bg-gray-400 dark:bg-gray-500 h-4"
                 }`}
               />
-              {marker.isSecond && (
-                <div className="absolute top-6 left-1 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap font-mono">
+
+              {/* 시간 레이블 - 겹침 방지를 위해 조건부 표시 */}
+              {marker.showLabel && (
+                <div
+                  className="absolute left-1 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap font-mono bg-white/90 dark:bg-gray-900/90 px-1.5 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm"
+                  style={{
+                    top: marker.isMajor ? "32px" : "28px",
+                    transform: "translateX(-50%)",
+                    left: "0px",
+                  }}
+                >
                   {marker.label}
                 </div>
               )}

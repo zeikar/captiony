@@ -76,7 +76,7 @@ export const SubtitleBar = React.memo<SubtitleBarProps>(
     const style = {
       left: `${x}px`,
       width: `${Math.max(20, width)}px`,
-      top: `${16 + yOffset}px`, // 기본 16px + 레이어 오프셋
+      top: `${28 + yOffset}px`, // 기본 28px + 레이어 오프셋
       transform: "translate3d(0, 0, 0)", // GPU 가속
     };
 
