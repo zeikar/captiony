@@ -26,7 +26,7 @@ export function VideoPlayer() {
   );
 
   return (
-    <div className="bg-black rounded-lg overflow-hidden shadow-lg">
+    <div className="bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700">
       {/* 비디오 영역 */}
       <VideoArea
         videoRef={videoRef}
@@ -36,7 +36,7 @@ export function VideoPlayer() {
       />
 
       {/* 컨트롤 바 */}
-      <div className="bg-gray-900 p-4 space-y-3">
+      <div className="bg-gray-50 dark:bg-gray-800 p-4 space-y-4 border-t border-gray-200 dark:border-gray-700">
         {/* 프로그레스 바 */}
         <ProgressBar
           currentTime={video.currentTime}
@@ -46,18 +46,18 @@ export function VideoPlayer() {
 
         {/* 컨트롤 버튼들 */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             {/* 재생/일시정지 버튼 */}
             <button
               onClick={togglePlay}
-              className="text-white hover:text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group flex items-center justify-center w-12 h-12 rounded-full bg-white dark:bg-gray-700 shadow-md hover:shadow-lg border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
               disabled={!video.url}
               aria-label={video.isPlaying ? "Pause" : "Play"}
             >
               {video.isPlaying ? (
-                <PauseIcon className="h-8 w-8" />
+                <PauseIcon className="h-5 w-5" />
               ) : (
-                <PlayIcon className="h-8 w-8" />
+                <PlayIcon className="h-5 w-5 ml-0.5" />
               )}
             </button>
 
@@ -71,7 +71,7 @@ export function VideoPlayer() {
 
           {/* 진행률 표시 */}
           {video.duration > 0 && (
-            <div className="text-white text-sm font-medium">
+            <div className="text-gray-600 dark:text-gray-400 text-sm font-medium bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full">
               {progressPercentage}%
             </div>
           )}

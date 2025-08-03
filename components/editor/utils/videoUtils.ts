@@ -1,10 +1,11 @@
 /**
- * 초를 MM:SS 형식으로 포맷팅
+ * 초를 MM:SS.mmm 형식으로 포맷팅 (밀리세컨드 포함)
  */
 export function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
+  const milliseconds = Math.floor((seconds % 1) * 1000);
+  return `${mins}:${secs.toString().padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
 }
 
 /**
