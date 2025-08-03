@@ -97,6 +97,19 @@ export function useVideoPlayer() {
     }
   }, [updateCurrentTime]);
 
+  const handleEnded = useCallback(() => {
+    setIsPlaying(false);
+    // 비디오 끝날 때 정확히 duration으로 설정
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.duration);
+    }
+    // 애니메이션 프레임 취소
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, [setIsPlaying, setCurrentTime]);
+
   // 비디오 이벤트 리스너 설정
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -109,6 +122,7 @@ export function useVideoPlayer() {
       ["play", handlePlay],
       ["pause", handlePause],
       ["seeked", handleSeeked],
+      ["ended", handleEnded],
     ] as const;
 
     // 이벤트 리스너 등록
@@ -130,6 +144,7 @@ export function useVideoPlayer() {
     handlePlay,
     handlePause,
     handleSeeked,
+    handleEnded,
   ]);
 
   // 컴포넌트 언마운트 시 애니메이션 프레임 정리
