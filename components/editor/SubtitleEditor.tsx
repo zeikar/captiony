@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import {
-  PencilIcon,
-  TrashIcon,
-  CheckIcon,
-  XMarkIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  PlusIcon,
 } from "@heroicons/react/24/outline";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
 import { useVideoStore } from "@/lib/stores/video-store";
-import type { SubtitleItem } from "@/lib/stores/subtitle-store";
+import { SubtitleItem } from "./components/SubtitleItem";
+import { EmptyState } from "./components/EmptyState";
+import type { SubtitleItem as SubtitleItemType } from "@/lib/stores/subtitle-store";
 
 export function SubtitleEditor() {
   const {
@@ -18,11 +19,13 @@ export function SubtitleEditor() {
     updateSubtitle,
     deleteSubtitle,
     selectSubtitle,
+    addSubtitle,
   } = useSubtitleStore();
 
   const { setCurrentTime } = useVideoStore();
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -33,7 +36,14 @@ export function SubtitleEditor() {
       .padStart(2, "0")}`;
   };
 
-  const handleEdit = (subtitle: SubtitleItem) => {
+  const handleSubtitleSelect = (subtitle: SubtitleItemType) => {
+    selectSubtitle(subtitle.id);
+    setCurrentTime(subtitle.startTime);
+  };
+
+  const handleEdit = (subtitle: SubtitleItemType) => {
+    // 편집 시 자동으로 선택되도록 함
+    handleSubtitleSelect(subtitle);
     setEditingId(subtitle.id);
   };
 
@@ -55,174 +65,106 @@ export function SubtitleEditor() {
     updateSubtitle(id, { [field]: timeValue });
   };
 
-  const handleSubtitleClick = (subtitle: SubtitleItem) => {
-    selectSubtitle(subtitle.id);
-    setCurrentTime(subtitle.startTime);
+  const handleAddSubtitle = () => {
+    const newSubtitle = {
+      text: "",
+      startTime: 0,
+      endTime: 2,
+    };
+    addSubtitle(newSubtitle);
+    // Store에서 자동으로 생성된 ID로 편집 모드 설정
+    setTimeout(() => {
+      const newestSubtitle = subtitles[subtitles.length - 1];
+      if (newestSubtitle) {
+        selectSubtitle(newestSubtitle.id);
+        setEditingId(newestSubtitle.id);
+      }
+    }, 0);
   };
 
-  return (
-    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 h-96 overflow-y-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Subtitle List
-        </h3>
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {subtitles.length} items
-        </span>
-      </div>
+  // Filter subtitles based on search term
+  const filteredSubtitles = subtitles.filter((subtitle) =>
+    subtitle.text.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-      {subtitles.length === 0 ? (
-        <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-          <p>No subtitles yet.</p>
-          <p className="text-sm mt-2">
-            Click "Add Subtitle" in the toolbar to get started.
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 h-full flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-t-xl">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Subtitles
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {filteredSubtitles.length} of {subtitles.length} items
           </p>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {subtitles
-            .sort((a, b) => a.startTime - b.startTime)
-            .map((subtitle) => (
-              <SubtitleItem
-                key={subtitle.id}
-                subtitle={subtitle}
-                isSelected={selectedSubtitleId === subtitle.id}
-                isEditing={editingId === subtitle.id}
-                onEdit={handleEdit}
-                onSave={handleSave}
-                onCancel={handleCancel}
-                onDelete={() => deleteSubtitle(subtitle.id)}
-                onClick={() => handleSubtitleClick(subtitle)}
-                onTimeChange={handleTimeChange}
-                formatTime={formatTime}
-              />
-            ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface SubtitleItemProps {
-  subtitle: SubtitleItem;
-  isSelected: boolean;
-  isEditing: boolean;
-  onEdit: (subtitle: SubtitleItem) => void;
-  onSave: (id: string, text: string) => void;
-  onCancel: () => void;
-  onDelete: () => void;
-  onClick: () => void;
-  onTimeChange: (
-    id: string,
-    field: "startTime" | "endTime",
-    value: string
-  ) => void;
-  formatTime: (seconds: number) => string;
-}
-
-function SubtitleItem({
-  subtitle,
-  isSelected,
-  isEditing,
-  onEdit,
-  onSave,
-  onCancel,
-  onDelete,
-  onClick,
-  onTimeChange,
-  formatTime,
-}: SubtitleItemProps) {
-  const [editText, setEditText] = useState(subtitle.text);
-
-  const handleSaveClick = () => {
-    onSave(subtitle.id, editText);
-  };
-
-  return (
-    <div
-      className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-        isSelected
-          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-          : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
-      }`}
-      onClick={!isEditing ? onClick : undefined}
-    >
-      {/* Time Information */}
-      <div className="flex items-center gap-2 mb-2 text-sm text-gray-600 dark:text-gray-400">
-        <input
-          type="number"
-          value={subtitle.startTime.toFixed(2)}
-          onChange={(e) =>
-            onTimeChange(subtitle.id, "startTime", e.target.value)
-          }
-          className="w-16 px-1 py-0.5 text-xs border rounded"
-          step="0.1"
-          onClick={(e) => e.stopPropagation()}
-        />
-        <span>~</span>
-        <input
-          type="number"
-          value={subtitle.endTime.toFixed(2)}
-          onChange={(e) => onTimeChange(subtitle.id, "endTime", e.target.value)}
-          className="w-16 px-1 py-0.5 text-xs border rounded"
-          step="0.1"
-          onClick={(e) => e.stopPropagation()}
-        />
-        <span className="text-xs">
-          ({formatTime(subtitle.startTime)} - {formatTime(subtitle.endTime)})
-        </span>
+        <button
+          onClick={handleAddSubtitle}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg"
+        >
+          <PlusIcon className="h-4 w-4" />
+          Add Subtitle
+        </button>
       </div>
 
-      {/* Subtitle Text */}
-      <div className="mb-2">
-        {isEditing ? (
-          <textarea
-            value={editText}
-            onChange={(e) => setEditText(e.target.value)}
-            className="w-full p-2 border rounded resize-none"
-            rows={2}
-            onClick={(e) => e.stopPropagation()}
+      {/* Search and Filter */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search subtitles..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 shadow-sm"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          <button className="flex items-center gap-2 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
+            <FunnelIcon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+          </button>
+        </div>
+      </div>
+
+      {/* Subtitle List */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {filteredSubtitles.length === 0 ? (
+          <EmptyState
+            type={subtitles.length === 0 ? "no-subtitles" : "no-results"}
+            onAddSubtitle={
+              subtitles.length === 0 ? handleAddSubtitle : undefined
+            }
           />
         ) : (
-          <p className="text-gray-900 dark:text-white">{subtitle.text}</p>
-        )}
-      </div>
-
-      {/* Action Buttons */}
-      <div
-        className="flex items-center justify-end gap-2"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {isEditing ? (
-          <>
-            <button
-              onClick={handleSaveClick}
-              className="p-1 text-green-600 hover:text-green-700"
-            >
-              <CheckIcon className="h-4 w-4" />
-            </button>
-            <button
-              onClick={onCancel}
-              className="p-1 text-gray-600 hover:text-gray-700"
-            >
-              <XMarkIcon className="h-4 w-4" />
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={() => onEdit(subtitle)}
-              className="p-1 text-blue-600 hover:text-blue-700"
-            >
-              <PencilIcon className="h-4 w-4" />
-            </button>
-            <button
-              onClick={onDelete}
-              className="p-1 text-red-600 hover:text-red-700"
-            >
-              <TrashIcon className="h-4 w-4" />
-            </button>
-          </>
+          <div className="space-y-3">
+            {filteredSubtitles
+              .sort((a, b) => a.startTime - b.startTime)
+              .map((subtitle, index) => (
+                <SubtitleItem
+                  key={subtitle.id}
+                  subtitle={subtitle}
+                  index={index + 1}
+                  isSelected={selectedSubtitleId === subtitle.id}
+                  isEditing={editingId === subtitle.id}
+                  onEdit={handleEdit}
+                  onSave={handleSave}
+                  onCancel={handleCancel}
+                  onDelete={() => deleteSubtitle(subtitle.id)}
+                  onSelect={() => handleSubtitleSelect(subtitle)}
+                  onTimeChange={handleTimeChange}
+                  formatTime={formatTime}
+                />
+              ))}
+          </div>
         )}
       </div>
     </div>
