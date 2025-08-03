@@ -34,7 +34,7 @@ export function VideoArea({
 
       {/* 자막 오버레이 */}
       {currentSubtitle && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg max-w-xs text-center">
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/75 text-white px-4 py-2 rounded-lg max-w-xs text-center">
           {currentSubtitle.text}
         </div>
       )}

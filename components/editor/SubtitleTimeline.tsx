@@ -155,7 +155,7 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
   );
 
   return (
-    <div className="w-full bg-gray-900 text-white">
+    <div className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700">
       {/* 컨트롤 바 */}
       <TimelineControls
         timelineScale={timelineScale}
@@ -175,13 +175,13 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
       {/* 타임라인 */}
       <div
         ref={timelineRef}
-        className="relative bg-gray-800 cursor-pointer select-none"
+        className="relative bg-gray-50 dark:bg-gray-800 cursor-pointer select-none border-t border-gray-200 dark:border-gray-600"
         style={{ height: `${dynamicTimelineHeight}px` }}
         onClick={handleTimelineClick}
         onDoubleClick={handleDoubleClick}
       >
         {/* 시간 눈금 */}
-        <div className="absolute top-0 left-0 w-full h-8 border-b border-gray-600">
+        <div className="absolute top-0 left-0 w-full h-8 border-b border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900">
           {timeMarkers.map((marker, index) => (
             <div
               key={index}
@@ -189,12 +189,14 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
               style={{ left: `${marker.x}px` }}
             >
               <div
-                className={`w-px bg-gray-500 ${
-                  marker.isSecond ? "h-6" : "h-3"
+                className={`w-px ${
+                  marker.isSecond
+                    ? "bg-gray-500 dark:bg-gray-400 h-6"
+                    : "bg-gray-300 dark:bg-gray-600 h-3"
                 }`}
               />
               {marker.isSecond && (
-                <div className="absolute top-6 left-1 text-xs text-gray-400 whitespace-nowrap">
+                <div className="absolute top-6 left-1 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap font-mono">
                   {marker.label}
                 </div>
               )}
@@ -207,6 +209,16 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
           className="absolute top-8 left-0 w-full"
           style={{ height: `${dynamicTimelineHeight - 32}px` }}
         >
+          {/* 레이어 구분선 - 레이어가 2개 이상일 때만 표시 */}
+          {subtitleLayers.length > 1 &&
+            subtitleLayers.map((_, layerIndex) => (
+              <div
+                key={`layer-line-${layerIndex}`}
+                className="absolute left-0 w-full h-px bg-gray-200 dark:bg-gray-700 opacity-50"
+                style={{ top: `${16 + layerIndex * 16 + 48}px` }}
+              />
+            ))}
+
           {subtitleLayers.map((layer, layerIndex) =>
             layer.map((subtitle) => {
               // 드래그 중인 자막의 임시 위치 확인
@@ -247,13 +259,13 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
 
         {/* 플레이헤드 */}
         <div
-          className="absolute top-0 w-0.5 bg-red-500 pointer-events-none z-10"
+          className="absolute top-0 w-0.5 bg-blue-600 dark:bg-blue-500 pointer-events-none z-10"
           style={{
             height: `${dynamicTimelineHeight}px`,
             ...playheadStyle,
           }}
         >
-          <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-red-500 rounded-sm" />
+          <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-blue-600 dark:bg-blue-500 rounded-sm" />
         </div>
       </div>
     </div>

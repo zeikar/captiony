@@ -45,27 +45,32 @@ export const SubtitleBar = React.memo<SubtitleBarProps>(
     // 색상 우선순위: 선택됨 + 겹침 > 선택됨 > 겹침 > 기본
     let backgroundClass: string;
     let borderClass: string;
+    let textClass: string = "text-white";
     let ringClass: string = "";
 
     if (isSelected && hasOverlap) {
       // 선택됨 + 겹침: 밝은 주황색
-      backgroundClass = "bg-orange-400"; // 더 밝은 주황색
-      borderClass = "border-orange-500";
-      ringClass = "ring-2 ring-orange-300";
+      backgroundClass = "bg-orange-500 dark:bg-orange-400";
+      borderClass = "border-orange-600 dark:border-orange-500";
+      ringClass = "ring-2 ring-orange-400 dark:ring-orange-300";
+      textClass = "text-white";
     } else if (isSelected) {
       // 선택됨: 파란색
-      backgroundClass = "bg-blue-500";
-      borderClass = "border-blue-700";
-      ringClass = "ring-2 ring-blue-400";
+      backgroundClass = "bg-blue-500 dark:bg-blue-600";
+      borderClass = "border-blue-600 dark:border-blue-700";
+      ringClass = "ring-2 ring-blue-400 dark:ring-blue-400";
+      textClass = "text-white";
     } else if (hasOverlap) {
       // 겹침: 빨간색
-      backgroundClass = "bg-red-500";
-      borderClass = "border-red-600";
-      ringClass = "ring-2 ring-red-400";
+      backgroundClass = "bg-red-500 dark:bg-red-600";
+      borderClass = "border-red-600 dark:border-red-700";
+      ringClass = "ring-2 ring-red-400 dark:ring-red-400";
+      textClass = "text-white";
     } else {
       // 기본: 보라색
-      backgroundClass = "bg-violet-500";
-      borderClass = "border-violet-600";
+      backgroundClass = "bg-violet-500 dark:bg-violet-600";
+      borderClass = "border-violet-600 dark:border-violet-700";
+      textClass = "text-white";
     }
 
     const style = {
@@ -77,16 +82,16 @@ export const SubtitleBar = React.memo<SubtitleBarProps>(
 
     return (
       <div
-        className={`absolute h-12 border rounded cursor-move select-none flex items-center justify-center text-xs font-medium text-white overflow-hidden ${backgroundClass} ${borderClass} ${ringClass}`}
+        className={`absolute h-12 border rounded cursor-move select-none flex items-center justify-center text-xs font-medium overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-150 ${backgroundClass} ${borderClass} ${textClass} ${ringClass}`}
         style={style}
         onMouseDown={(e) => onMouseDown(e, subtitle)}
       >
         {/* 텍스트 */}
-        <span className="truncate px-1">{subtitle.text}</span>
+        <span className="truncate px-1 font-medium">{subtitle.text}</span>
 
         {/* 리사이즈 핸들 - 시작 */}
         <div
-          className="absolute left-0 top-0 w-2 h-full bg-transparent cursor-ew-resize hover:bg-blue-400 hover:bg-opacity-50"
+          className="absolute left-0 top-0 w-2 h-full bg-transparent cursor-ew-resize hover:bg-white/30 transition-colors duration-150"
           onMouseDown={(e) => {
             e.stopPropagation();
             onMouseDown(e, subtitle, "start");
@@ -95,7 +100,7 @@ export const SubtitleBar = React.memo<SubtitleBarProps>(
 
         {/* 리사이즈 핸들 - 끝 */}
         <div
-          className="absolute right-0 top-0 w-2 h-full bg-transparent cursor-ew-resize hover:bg-blue-400 hover:bg-opacity-50"
+          className="absolute right-0 top-0 w-2 h-full bg-transparent cursor-ew-resize hover:bg-white/30 transition-colors duration-150"
           onMouseDown={(e) => {
             e.stopPropagation();
             onMouseDown(e, subtitle, "end");

@@ -89,7 +89,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       <div className="relative overflow-hidden rounded-lg">
         {/* Progress bar */}
         <div
-          className="absolute bottom-0 left-0 h-1 bg-gray-300 bg-opacity-50"
+          className="absolute bottom-0 left-0 h-1 bg-gray-300/50"
           style={{ width: `${progress}%`, transition: "width 100ms linear" }}
         />
 
