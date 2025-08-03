@@ -15,10 +15,11 @@ import {
   arrangeSubtitlesInLayers,
   findOverlappingSubtitles,
 } from "./utils/timelineUtils";
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 
 export const SubtitleTimeline: React.FC = React.memo(() => {
   const timelineRef = useRef<HTMLDivElement>(null);
+  const [timelineWidth, setTimelineWidth] = useState(0);
 
   const {
     subtitles,
@@ -32,6 +33,26 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
   } = useSubtitleStore();
 
   const { video, setCurrentTime } = useVideoStore();
+
+  // Timeline width 감지를 위한 ResizeObserver
+  useEffect(() => {
+    if (!timelineRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setTimelineWidth(entry.contentRect.width);
+      }
+    });
+
+    resizeObserver.observe(timelineRef.current);
+    
+    // 초기 값 설정
+    setTimelineWidth(timelineRef.current.clientWidth);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   // Constants
   const basePixelsPerSecond = 50;
@@ -63,9 +84,9 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
 
   // 시간 눈금 생성
   const timeMarkers = useMemo(() => {
-    if (!timelineRef.current) return [];
+    // timelineWidth가 0이면 빈 배열 반환
+    if (timelineWidth === 0) return [];
 
-    const timelineWidth = timelineRef.current.clientWidth;
     const startTime = timelineOffset;
     const endTime = timelineOffset + timelineWidth / pixelsPerSecond;
     const markers = [];
@@ -145,18 +166,18 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     }
 
     return markers.sort((a, b) => a.time - b.time);
-  }, [timelineOffset, pixelsPerSecond, timelineScale]);
+  }, [timelineOffset, pixelsPerSecond, timelineScale, timelineWidth]);
 
   // 현재 재생 위치 플레이헤드 스타일
   const playheadStyle = useMemo(() => {
     const x = getXFromTime(video.currentTime, timelineOffset, pixelsPerSecond);
     return {
       transform: `translate3d(${x}px, 0, 0)`,
-      visibility: (x >= -2 && x <= (timelineRef.current?.clientWidth || 0) + 2
+      visibility: (x >= -2 && x <= timelineWidth + 2
         ? "visible"
         : "hidden") as "visible" | "hidden",
     };
-  }, [video.currentTime, timelineOffset, pixelsPerSecond]);
+  }, [video.currentTime, timelineOffset, pixelsPerSecond, timelineWidth]);
 
   // 타임라인 클릭 핸들러
   const handleTimelineClick = useCallback(
@@ -212,7 +233,6 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
           onScaleChange={setTimelineScale}
           onFitToView={() => {
             if (!timelineRef.current || !video.duration) return;
-            const timelineWidth = timelineRef.current.clientWidth;
             const newScale =
               timelineWidth / (video.duration * basePixelsPerSecond);
             const clampedScale = Math.max(0.5, Math.min(5, newScale));

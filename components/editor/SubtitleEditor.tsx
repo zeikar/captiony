@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -26,6 +26,18 @@ export function SubtitleEditor() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const subtitleRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // 선택된 자막으로 스크롤
+  useEffect(() => {
+    if (selectedSubtitleId && subtitleRefs.current[selectedSubtitleId]) {
+      const selectedElement = subtitleRefs.current[selectedSubtitleId];
+      selectedElement.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [selectedSubtitleId]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -149,20 +161,26 @@ export function SubtitleEditor() {
             {filteredSubtitles
               .sort((a, b) => a.startTime - b.startTime)
               .map((subtitle, index) => (
-                <SubtitleItem
+                <div
                   key={subtitle.id}
-                  subtitle={subtitle}
-                  index={index + 1}
-                  isSelected={selectedSubtitleId === subtitle.id}
-                  isEditing={editingId === subtitle.id}
-                  onEdit={handleEdit}
-                  onSave={handleSave}
-                  onCancel={handleCancel}
-                  onDelete={() => deleteSubtitle(subtitle.id)}
-                  onSelect={() => handleSubtitleSelect(subtitle)}
-                  onTimeChange={handleTimeChange}
-                  formatTime={formatTime}
-                />
+                  ref={(el) => {
+                    subtitleRefs.current[subtitle.id] = el;
+                  }}
+                >
+                  <SubtitleItem
+                    subtitle={subtitle}
+                    index={index + 1}
+                    isSelected={selectedSubtitleId === subtitle.id}
+                    isEditing={editingId === subtitle.id}
+                    onEdit={handleEdit}
+                    onSave={handleSave}
+                    onCancel={handleCancel}
+                    onDelete={() => deleteSubtitle(subtitle.id)}
+                    onSelect={() => handleSubtitleSelect(subtitle)}
+                    onTimeChange={handleTimeChange}
+                    formatTime={formatTime}
+                  />
+                </div>
               ))}
           </div>
         )}
