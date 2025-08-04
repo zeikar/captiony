@@ -106,7 +106,7 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     // timelineWidth가 0이면 빈 배열 반환
     if (timelineWidth === 0) return [];
 
-    const startTime = effectiveTimelineOffset;
+    const startTime = Math.max(0, effectiveTimelineOffset); // 0초 아래로 가지 않도록
     const endTime = effectiveTimelineOffset + timelineWidth / pixelsPerSecond;
     const markers = [];
 
@@ -142,10 +142,16 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     }
 
     // 주요 눈금 생성
-    const startMajor = Math.floor(startTime / majorInterval) * majorInterval;
+    const startMajor = Math.max(
+      0,
+      Math.floor(startTime / majorInterval) * majorInterval
+    ); // 0초 아래로 가지 않도록
     const endMajor = Math.ceil(endTime / majorInterval) * majorInterval;
 
     for (let time = startMajor; time <= endMajor; time += majorInterval) {
+      // 0초 미만은 건너뛰기
+      if (time < 0) continue;
+
       const x = getXFromTime(time, effectiveTimelineOffset, pixelsPerSecond);
       if (x >= -100 && x <= timelineWidth + 100) {
         const shouldShowLabel = time % labelInterval === 0;
@@ -162,10 +168,16 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
 
     // 보조 눈금 생성 (줌이 충분할 때만)
     if (timelineScale >= 1) {
-      const startMinor = Math.floor(startTime / minorInterval) * minorInterval;
+      const startMinor = Math.max(
+        0,
+        Math.floor(startTime / minorInterval) * minorInterval
+      ); // 0초 아래로 가지 않도록
       const endMinor = Math.ceil(endTime / minorInterval) * minorInterval;
 
       for (let time = startMinor; time <= endMinor; time += minorInterval) {
+        // 0초 미만은 건너뛰기
+        if (time < 0) continue;
+
         const x = getXFromTime(time, effectiveTimelineOffset, pixelsPerSecond);
         if (x >= -50 && x <= timelineWidth + 50) {
           // 주요 눈금과 겹치지 않는 경우만 추가
@@ -227,7 +239,10 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
       if (!rect) return;
 
       const x = e.clientX - rect.left;
-      const time = getTimeFromX(x, effectiveTimelineOffset, pixelsPerSecond);
+      const time = Math.max(
+        0,
+        getTimeFromX(x, effectiveTimelineOffset, pixelsPerSecond)
+      ); // 0초 아래로 가지 않도록
 
       setCurrentTime(time);
     },
@@ -245,10 +260,13 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
 
       if (timelineMode === "centered") {
         // Centered 모드에서는 현재 동영상 시간 위치에 자막 추가
-        time = video.currentTime;
+        time = Math.max(0, video.currentTime); // 0초 아래로 가지 않도록
       } else {
         // Free 모드에서는 클릭한 위치에 자막 추가
-        time = getTimeFromX(x, effectiveTimelineOffset, pixelsPerSecond);
+        time = Math.max(
+          0,
+          getTimeFromX(x, effectiveTimelineOffset, pixelsPerSecond)
+        ); // 0초 아래로 가지 않도록
       }
 
       const newSubtitle = {
@@ -366,6 +384,9 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
 
             {subtitleLayers.map((layer, layerIndex) =>
               layer.map((subtitle) => {
+                // 자막이 0초 미만에서 시작하거나 끝나면 렌더링하지 않음
+                if (subtitle.endTime < 0) return null;
+
                 // 드래그 중인 자막의 임시 위치 확인
                 const tempPos =
                   tempSubtitlePosition &&
@@ -426,6 +447,55 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
               <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-400 dark:bg-red-500 rounded-full opacity-50" />
             </div>
           )}
+
+          {/* 동영상 길이를 넘어가는 부분 딤드 처리 */}
+          {video.duration &&
+            (() => {
+              const videoDurationX = getXFromTime(
+                video.duration,
+                effectiveTimelineOffset,
+                pixelsPerSecond
+              );
+              if (videoDurationX < timelineWidth) {
+                return (
+                  <div
+                    className="absolute top-0 bg-gray-900/20 dark:bg-gray-100/10 pointer-events-none z-5"
+                    style={{
+                      left: `${Math.max(0, videoDurationX)}px`,
+                      width: `${timelineWidth - Math.max(0, videoDurationX)}px`,
+                      height: `${dynamicTimelineHeight}px`,
+                    }}
+                  >
+                    <div className="absolute left-0 top-0 w-0.5 h-full bg-orange-500 dark:bg-orange-400 opacity-60" />
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+          {/* 0초 아래 부분 딤드 처리 */}
+          {(() => {
+            const zeroX = getXFromTime(
+              0,
+              effectiveTimelineOffset,
+              pixelsPerSecond
+            );
+            if (zeroX > 0) {
+              return (
+                <div
+                  className="absolute top-0 bg-gray-900/30 dark:bg-gray-100/20 pointer-events-none z-5"
+                  style={{
+                    left: "0px",
+                    width: `${Math.min(timelineWidth, zeroX)}px`,
+                    height: `${dynamicTimelineHeight}px`,
+                  }}
+                >
+                  <div className="absolute right-0 top-0 w-0.5 h-full bg-red-500 dark:bg-red-400 opacity-60" />
+                </div>
+              );
+            }
+            return null;
+          })()}
         </div>
       </div>
     </div>
