@@ -16,6 +16,7 @@ interface SubtitleItemProps {
   index: number;
   isSelected: boolean;
   isEditing: boolean;
+  isCurrent?: boolean; // 현재 재생 중인 자막인지
   onEdit: (subtitle: SubtitleItemType) => void;
   onSave: (id: string, text: string) => void;
   onCancel: () => void;
@@ -34,6 +35,7 @@ export function SubtitleItem({
   index,
   isSelected,
   isEditing,
+  isCurrent = false,
   onEdit,
   onSave,
   onCancel,
@@ -111,6 +113,11 @@ export function SubtitleItem({
   const getContainerStyle = () => {
     const baseStyle =
       "group relative rounded-xl p-4 cursor-pointer transition-all duration-200 border-2";
+
+    if (isCurrent) {
+      return `${baseStyle} border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 shadow-lg scale-[1.02] ring-2 ring-green-200 dark:ring-green-800`;
+    }
+
     const selectedStyle =
       "border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 shadow-lg scale-[1.02]";
     const defaultStyle =
@@ -128,6 +135,7 @@ export function SubtitleItem({
         formatTime={formatTime}
         getDurationBadgeStyle={getDurationBadgeStyle}
         isSelected={isSelected}
+        isCurrent={isCurrent}
         onClick={handleSelectClick}
       />
       <TimeInputs
@@ -182,6 +190,7 @@ function Header({
   formatTime,
   getDurationBadgeStyle,
   isSelected,
+  isCurrent,
   onClick,
 }: {
   subtitle: SubtitleItemType;
@@ -189,6 +198,7 @@ function Header({
   formatTime: (seconds: number) => string;
   getDurationBadgeStyle: () => string;
   isSelected: boolean;
+  isCurrent: boolean;
   onClick: () => void;
 }) {
   return (
@@ -217,10 +227,17 @@ function Header({
           </div>
         )}
 
-        {isSelected && (
-          <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-medium animate-pulse">
+        {isCurrent && (
+          <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium animate-pulse">
             <PlayIcon className="h-3 w-3" />
-            <span>Playing</span>
+            <span>Now Playing</span>
+          </div>
+        )}
+
+        {isSelected && !isCurrent && (
+          <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
+            <PlayIcon className="h-3 w-3" />
+            <span>Selected</span>
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -22,11 +22,22 @@ export function SubtitleEditor() {
     addSubtitle,
   } = useSubtitleStore();
 
-  const { setCurrentTime } = useVideoStore();
+  const { setCurrentTime, video } = useVideoStore();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [autoScroll, setAutoScroll] = useState(true);
   const subtitleRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // 현재 재생 중인 자막 계산
+  const currentSubtitle = useMemo(() => {
+    return (
+      subtitles.find(
+        (sub) =>
+          video.currentTime >= sub.startTime && video.currentTime <= sub.endTime
+      ) || null
+    );
+  }, [subtitles, video.currentTime]);
 
   // 선택된 자막으로 스크롤
   useEffect(() => {
@@ -38,6 +49,27 @@ export function SubtitleEditor() {
       });
     }
   }, [selectedSubtitleId]);
+
+  // 자동 스크롤 로직 - 가장 최적화된 버전
+  const autoScrollRef = useRef(autoScroll);
+  const isPlayingRef = useRef(video.isPlaying);
+  const selectedSubtitleIdRef = useRef(selectedSubtitleId);
+
+  // refs 업데이트
+  autoScrollRef.current = autoScroll;
+  isPlayingRef.current = video.isPlaying;
+  selectedSubtitleIdRef.current = selectedSubtitleId;
+
+  useEffect(() => {
+    if (
+      autoScrollRef.current &&
+      isPlayingRef.current &&
+      currentSubtitle &&
+      currentSubtitle.id !== selectedSubtitleIdRef.current
+    ) {
+      selectSubtitle(currentSubtitle.id);
+    }
+  }, [currentSubtitle?.id]); // 오직 현재 자막 ID 변경에만 의존
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -111,13 +143,32 @@ export function SubtitleEditor() {
             {filteredSubtitles.length} of {subtitles.length} items
           </p>
         </div>
-        <button
-          onClick={handleAddSubtitle}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg"
-        >
-          <PlusIcon className="h-4 w-4" />
-          Add Subtitle
-        </button>
+        <div className="flex items-center gap-3">
+          {/* 자동 스크롤 토글 */}
+          <button
+            onClick={() => setAutoScroll(!autoScroll)}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+              autoScroll
+                ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-600"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600"
+            }`}
+            title={autoScroll ? "Auto-scroll enabled" : "Auto-scroll disabled"}
+          >
+            <div
+              className={`w-2 h-2 rounded-full ${
+                autoScroll ? "bg-blue-500" : "bg-gray-400"
+              }`}
+            />
+            Auto-scroll
+          </button>
+          <button
+            onClick={handleAddSubtitle}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Add Subtitle
+          </button>
+        </div>
       </div>
 
       {/* Search and Filter */}
@@ -171,6 +222,7 @@ export function SubtitleEditor() {
                     subtitle={subtitle}
                     index={index + 1}
                     isSelected={selectedSubtitleId === subtitle.id}
+                    isCurrent={currentSubtitle?.id === subtitle.id}
                     isEditing={editingId === subtitle.id}
                     onEdit={handleEdit}
                     onSave={handleSave}

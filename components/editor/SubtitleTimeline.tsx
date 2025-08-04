@@ -45,7 +45,7 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     });
 
     resizeObserver.observe(timelineRef.current);
-    
+
     // 초기 값 설정
     setTimelineWidth(timelineRef.current.clientWidth);
 
@@ -173,9 +173,9 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     const x = getXFromTime(video.currentTime, timelineOffset, pixelsPerSecond);
     return {
       transform: `translate3d(${x}px, 0, 0)`,
-      visibility: (x >= -2 && x <= timelineWidth + 2
-        ? "visible"
-        : "hidden") as "visible" | "hidden",
+      visibility: (x >= -2 && x <= timelineWidth + 2 ? "visible" : "hidden") as
+        | "visible"
+        | "hidden",
     };
   }, [video.currentTime, timelineOffset, pixelsPerSecond, timelineWidth]);
 
