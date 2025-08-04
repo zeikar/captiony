@@ -9,6 +9,9 @@ export interface SubtitleItem {
   text: string;
 }
 
+// Timeline mode type definition
+export type TimelineMode = "free" | "centered";
+
 // Store state type definition
 interface SubtitleStore {
   // Subtitle state
@@ -18,6 +21,7 @@ interface SubtitleStore {
   // Timeline state
   timelineScale: number; // zoom level
   timelineOffset: number; // scroll offset
+  timelineMode: TimelineMode; // timeline interaction mode
 
   // Actions
   addSubtitle: (subtitle: Omit<SubtitleItem, "id">) => void;
@@ -27,6 +31,7 @@ interface SubtitleStore {
 
   setTimelineScale: (scale: number) => void;
   setTimelineOffset: (offset: number) => void;
+  setTimelineMode: (mode: TimelineMode) => void;
 
   // Utility functions
   getCurrentSubtitle: () => SubtitleItem | null;
@@ -72,6 +77,7 @@ export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
 
   timelineScale: 1,
   timelineOffset: 0,
+  timelineMode: "free" as TimelineMode,
 
   // Subtitle actions
   addSubtitle: (subtitle) =>
@@ -116,6 +122,7 @@ export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
   // Timeline actions
   setTimelineScale: (timelineScale) => set({ timelineScale }),
   setTimelineOffset: (timelineOffset) => set({ timelineOffset }),
+  setTimelineMode: (timelineMode) => set({ timelineMode }),
 
   // Utility functions
   getCurrentSubtitle: () => {

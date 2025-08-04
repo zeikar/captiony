@@ -9,10 +9,11 @@ export function useTimelineWheel(
   timelineRef: React.RefObject<HTMLDivElement>,
   timelineOffset: number,
   timelineScale: number,
-  pixelsPerSecond: number
+  pixelsPerSecond: number,
+  timelineMode: "free" | "centered"
 ) {
   const { setTimelineScale, setTimelineOffset } = useSubtitleStore();
-  const { video } = useVideoStore();
+  const { video, setCurrentTime } = useVideoStore();
 
   useEffect(() => {
     const timelineElement = timelineRef.current;
@@ -37,45 +38,87 @@ export function useTimelineWheel(
         setTimelineOffset(Math.max(0, newOffset));
       } else {
         // Scroll
-        const rect = timelineElement.getBoundingClientRect();
-        let deltaY = e.deltaY;
-        let deltaX = e.deltaX;
+        if (timelineMode === "centered") {
+          // Centered 모드에서는 스크롤을 동영상 시간 변경으로 처리
+          const rect = timelineElement.getBoundingClientRect();
+          let deltaY = e.deltaY;
+          let deltaX = e.deltaX;
 
-        if (e.deltaMode === 1) {
-          deltaY *= 33;
-          deltaX *= 33;
-        } else if (e.deltaMode === 2) {
-          deltaY *= rect.height;
-          deltaX *= rect.width;
-        }
+          if (e.deltaMode === 1) {
+            deltaY *= 33;
+            deltaX *= 33;
+          } else if (e.deltaMode === 2) {
+            deltaY *= rect.height;
+            deltaX *= rect.width;
+          }
 
-        const baseScrollSpeed = 1;
-        const fastScrollThreshold = 100;
-        const isDeltaYDominant = Math.abs(deltaY) > Math.abs(deltaX);
-        const primaryDelta = isDeltaYDominant ? deltaY : deltaX;
+          const baseScrollSpeed = 1;
+          const fastScrollThreshold = 100;
+          const isDeltaYDominant = Math.abs(deltaY) > Math.abs(deltaX);
+          const primaryDelta = isDeltaYDominant ? deltaY : deltaX;
 
-        let scrollSpeed;
-        if (Math.abs(primaryDelta) > fastScrollThreshold) {
-          scrollSpeed = baseScrollSpeed * 1.5;
+          let scrollSpeed;
+          if (Math.abs(primaryDelta) > fastScrollThreshold) {
+            scrollSpeed = baseScrollSpeed * 1.5;
+          } else {
+            scrollSpeed = baseScrollSpeed;
+          }
+
+          let scrollDirection;
+          if (deltaX !== 0) {
+            scrollDirection = deltaX > 0 ? 1 : -1;
+          } else {
+            scrollDirection = deltaY > 0 ? 1 : -1;
+          }
+
+          const scrollTime = scrollSpeed * scrollDirection;
+          const newTime = Math.max(
+            0,
+            Math.min(video.duration || 0, video.currentTime + scrollTime)
+          );
+          setCurrentTime(newTime);
         } else {
-          scrollSpeed = baseScrollSpeed;
+          // Free 모드에서는 기존 방식으로 타임라인 오프셋 변경
+          const rect = timelineElement.getBoundingClientRect();
+          let deltaY = e.deltaY;
+          let deltaX = e.deltaX;
+
+          if (e.deltaMode === 1) {
+            deltaY *= 33;
+            deltaX *= 33;
+          } else if (e.deltaMode === 2) {
+            deltaY *= rect.height;
+            deltaX *= rect.width;
+          }
+
+          const baseScrollSpeed = 1;
+          const fastScrollThreshold = 100;
+          const isDeltaYDominant = Math.abs(deltaY) > Math.abs(deltaX);
+          const primaryDelta = isDeltaYDominant ? deltaY : deltaX;
+
+          let scrollSpeed;
+          if (Math.abs(primaryDelta) > fastScrollThreshold) {
+            scrollSpeed = baseScrollSpeed * 1.5;
+          } else {
+            scrollSpeed = baseScrollSpeed;
+          }
+
+          let scrollDirection;
+          if (deltaX !== 0) {
+            scrollDirection = deltaX > 0 ? 1 : -1;
+          } else {
+            scrollDirection = deltaY > 0 ? 1 : -1;
+          }
+
+          const scrollTime = scrollSpeed * scrollDirection;
+          const newOffset = Math.max(0, timelineOffset + scrollTime);
+          const maxOffset = Math.max(
+            0,
+            (video.duration || 0) - rect.width / pixelsPerSecond
+          );
+
+          setTimelineOffset(Math.min(newOffset, maxOffset));
         }
-
-        let scrollDirection;
-        if (deltaX !== 0) {
-          scrollDirection = deltaX > 0 ? 1 : -1;
-        } else {
-          scrollDirection = deltaY > 0 ? 1 : -1;
-        }
-
-        const scrollTime = scrollSpeed * scrollDirection;
-        const newOffset = Math.max(0, timelineOffset + scrollTime);
-        const maxOffset = Math.max(
-          0,
-          (video.duration || 0) - rect.width / pixelsPerSecond
-        );
-
-        setTimelineOffset(Math.min(newOffset, maxOffset));
       }
     };
 
@@ -89,8 +132,11 @@ export function useTimelineWheel(
     timelineOffset,
     timelineScale,
     pixelsPerSecond,
+    timelineMode,
     video.duration,
+    video.currentTime,
     setTimelineScale,
     setTimelineOffset,
+    setCurrentTime,
   ]);
 }

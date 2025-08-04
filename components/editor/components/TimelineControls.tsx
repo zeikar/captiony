@@ -1,16 +1,26 @@
 "use client";
 
 import React from "react";
+import { TimelineMode } from "@/lib/stores/subtitle-store";
 
 interface TimelineControlsProps {
   timelineScale: number;
+  timelineMode: TimelineMode;
   onScaleChange: (scale: number) => void;
+  onModeChange: (mode: TimelineMode) => void;
   onFitToView: () => void;
   onResetZoom: () => void;
 }
 
 export const TimelineControls = React.memo<TimelineControlsProps>(
-  ({ timelineScale, onScaleChange, onFitToView, onResetZoom }) => {
+  ({
+    timelineScale,
+    timelineMode,
+    onScaleChange,
+    onModeChange,
+    onFitToView,
+    onResetZoom,
+  }) => {
     const handleZoomIn = () => {
       onScaleChange(Math.min(5, timelineScale * 1.2));
     };
@@ -21,6 +31,32 @@ export const TimelineControls = React.memo<TimelineControlsProps>(
 
     return (
       <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        {/* Timeline Mode Toggle */}
+        <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+          <button
+            onClick={() => onModeChange("free")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-150 ${
+              timelineMode === "free"
+                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+            }`}
+          >
+            Free
+          </button>
+          <button
+            onClick={() => onModeChange("centered")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-150 ${
+              timelineMode === "centered"
+                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+            }`}
+          >
+            Centered
+          </button>
+        </div>
+
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
+
         <div className="flex items-center gap-1">
           <button
             onClick={handleZoomOut}
