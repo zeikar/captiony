@@ -4,9 +4,13 @@ import { VideoPlayer } from "./VideoPlayer";
 import { SubtitleTimeline } from "./SubtitleTimeline";
 import { SubtitleEditor } from "./SubtitleEditor";
 import { useVideoStore } from "@/lib/stores/video-store";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 export function CaptionEditor() {
   const { video } = useVideoStore();
+
+  // 전체 에디터에서 키보드 단축키 활성화
+  useKeyboardShortcuts();
 
   return (
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">

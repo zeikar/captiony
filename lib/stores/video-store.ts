@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import React from "react";
 
 // Video state type definition
 export interface VideoState {
@@ -12,13 +13,17 @@ export interface VideoState {
 // Video store interface
 interface VideoStore {
   video: VideoState;
+  videoRef: React.RefObject<HTMLVideoElement | null> | null;
 
   // Actions
+  setVideoRef: (ref: React.RefObject<HTMLVideoElement | null>) => void;
   setVideoUrl: (url: string) => void;
   setVideoDuration: (duration: number) => void;
   setCurrentTime: (time: number) => void;
   setCurrentTimeSmooth: (time: number) => void; // 부드러운 업데이트용
   setIsPlaying: (playing: boolean) => void;
+  togglePlayPause: () => void;
+  seekTo: (time: number) => void;
   setVolume: (volume: number) => void;
 }
 
@@ -33,6 +38,10 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
     isPlaying: false,
     volume: 1,
   },
+  videoRef: null,
+
+  // Video ref management
+  setVideoRef: (ref) => set({ videoRef: ref }),
 
   // Video actions
   setVideoUrl: (url) =>
@@ -72,6 +81,34 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
     set((state) => ({
       video: { ...state.video, isPlaying },
     })),
+
+  togglePlayPause: () => {
+    const { video, videoRef } = get();
+    const videoElement = videoRef?.current;
+
+    if (videoElement) {
+      if (video.isPlaying) {
+        videoElement.pause();
+      } else {
+        videoElement.play().catch(console.error);
+      }
+    }
+
+    set((state) => ({
+      video: { ...state.video, isPlaying: !state.video.isPlaying },
+    }));
+  },
+
+  seekTo: (time) => {
+    const { videoRef } = get();
+    const videoElement = videoRef?.current;
+    if (videoElement) {
+      videoElement.currentTime = time;
+    }
+    set((state) => ({
+      video: { ...state.video, currentTime: time },
+    }));
+  },
 
   setVolume: (volume) =>
     set((state) => ({

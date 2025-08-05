@@ -7,7 +7,6 @@ import { SubtitleBar } from "./components/SubtitleBar";
 import { TimelineControls } from "./components/TimelineControls";
 import { useSubtitleDrag } from "./hooks/useSubtitleDrag";
 import { useTimelineWheel } from "./hooks/useTimelineWheel";
-import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import {
   formatTime,
   getTimeFromX,
@@ -75,7 +74,6 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     pixelsPerSecond,
     timelineMode
   );
-  useKeyboardShortcuts();
 
   // 모드 변경 핸들러 (free 모드로 바뀔 때 현재 재생 시간으로 이동)
   const handleModeChange = useCallback(

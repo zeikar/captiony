@@ -10,6 +10,7 @@ import { useSubtitleStore } from "@/lib/stores/subtitle-store";
 import { useVideoStore } from "@/lib/stores/video-store";
 import { SubtitleItem } from "./components/SubtitleItem";
 import { EmptyState } from "./components/EmptyState";
+import { KeyboardShortcutsHelp } from "./components/KeyboardShortcutsHelp";
 import type { SubtitleItem as SubtitleItemType } from "@/lib/stores/subtitle-store";
 
 export function SubtitleEditor() {
@@ -161,6 +162,10 @@ export function SubtitleEditor() {
             />
             Auto-scroll
           </button>
+
+          {/* 키보드 단축키 도움말 */}
+          <KeyboardShortcutsHelp />
+
           <button
             onClick={handleAddSubtitle}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg"

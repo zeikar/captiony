@@ -15,7 +15,13 @@ export function useVideoPlayer() {
     setIsPlaying,
     setVideoDuration,
     setVolume,
+    setVideoRef,
   } = useVideoStore();
+
+  // videoRef를 store에 등록
+  useEffect(() => {
+    setVideoRef(videoRef);
+  }, [setVideoRef]);
 
   // 부드러운 시간 업데이트를 위한 애니메이션 프레임 기반 업데이트
   const updateCurrentTime = useCallback(() => {
