@@ -77,6 +77,30 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
   );
   useKeyboardShortcuts();
 
+  // 모드 변경 핸들러 (free 모드로 바뀔 때 현재 재생 시간으로 이동)
+  const handleModeChange = useCallback(
+    (newMode: "free" | "centered") => {
+      if (newMode === "free" && timelineMode === "centered") {
+        // centered에서 free로 바뀔 때, 현재 재생 시간이 중앙에 오도록 offset 설정
+        const centerX = timelineWidth / 2;
+        const newOffset = Math.max(
+          0,
+          video.currentTime - centerX / pixelsPerSecond
+        );
+        setTimelineOffset(newOffset);
+      }
+      setTimelineMode(newMode);
+    },
+    [
+      timelineMode,
+      timelineWidth,
+      video.currentTime,
+      pixelsPerSecond,
+      setTimelineOffset,
+      setTimelineMode,
+    ]
+  );
+
   // 자막을 레이어별로 배치
   const subtitleLayers = useMemo(() => {
     return arrangeSubtitlesInLayers(subtitles);
@@ -101,13 +125,44 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     timelineOffset,
   ]);
 
-  // 시간 눈금 생성
+  // 자막 컨테이너 이동을 위한 transform 계산 (성능 최적화)
+  const subtitleContainerTransform = useMemo(() => {
+    if (timelineMode === "centered") {
+      // Centered 모드에서는 컨테이너 전체를 이동시켜 자막들을 올바른 위치에 표시
+      const translateX = -video.currentTime * pixelsPerSecond + centerX;
+      return `translate3d(${translateX}px, 0, 0)`;
+    }
+    // Free 모드에서는 timelineOffset 기준으로 이동
+    const translateX = -timelineOffset * pixelsPerSecond;
+    return `translate3d(${translateX}px, 0, 0)`;
+  }, [
+    timelineMode,
+    video.currentTime,
+    pixelsPerSecond,
+    centerX,
+    timelineOffset,
+  ]);
+
+  // 시간 눈금 생성 (성능 최적화를 위해 고정 기준점 사용)
   const timeMarkers = useMemo(() => {
     // timelineWidth가 0이면 빈 배열 반환
     if (timelineWidth === 0) return [];
 
-    const startTime = Math.max(0, effectiveTimelineOffset); // 0초 아래로 가지 않도록
-    const endTime = effectiveTimelineOffset + timelineWidth / pixelsPerSecond;
+    // 현재 표시되는 시간 범위 계산
+    let visibleStartTime: number;
+    let visibleEndTime: number;
+
+    if (timelineMode === "centered") {
+      // Centered 모드에서는 현재 시간 기준으로 좌우 표시 범위 계산
+      const halfVisible = timelineWidth / (2 * pixelsPerSecond);
+      visibleStartTime = Math.max(0, video.currentTime - halfVisible);
+      visibleEndTime = video.currentTime + halfVisible;
+    } else {
+      // Free 모드에서는 timelineOffset 기준
+      visibleStartTime = Math.max(0, timelineOffset);
+      visibleEndTime = timelineOffset + timelineWidth / pixelsPerSecond;
+    }
+
     const markers = [];
 
     // 줌 레벨에 따른 간격과 레이블 표시 간격 결정
@@ -144,60 +199,64 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     // 주요 눈금 생성
     const startMajor = Math.max(
       0,
-      Math.floor(startTime / majorInterval) * majorInterval
-    ); // 0초 아래로 가지 않도록
-    const endMajor = Math.ceil(endTime / majorInterval) * majorInterval;
+      Math.floor(visibleStartTime / majorInterval) * majorInterval
+    );
+    const endMajor = Math.ceil(visibleEndTime / majorInterval) * majorInterval;
 
     for (let time = startMajor; time <= endMajor; time += majorInterval) {
-      // 0초 미만은 건너뛰기
       if (time < 0) continue;
 
-      const x = getXFromTime(time, effectiveTimelineOffset, pixelsPerSecond);
-      if (x >= -100 && x <= timelineWidth + 100) {
-        const shouldShowLabel = time % labelInterval === 0;
-        markers.push({
-          time,
-          x,
-          label: formatTime(time),
-          isSecond: true,
-          isMajor: true,
-          showLabel: shouldShowLabel,
-        });
-      }
+      // 고정 기준점(timelineOffset = 0) 기준으로 x 좌표 계산
+      const x = time * pixelsPerSecond;
+      const shouldShowLabel = time % labelInterval === 0;
+      markers.push({
+        time,
+        x,
+        label: formatTime(time),
+        isSecond: true,
+        isMajor: true,
+        showLabel: shouldShowLabel,
+      });
     }
 
     // 보조 눈금 생성 (줌이 충분할 때만)
     if (timelineScale >= 1) {
       const startMinor = Math.max(
         0,
-        Math.floor(startTime / minorInterval) * minorInterval
-      ); // 0초 아래로 가지 않도록
-      const endMinor = Math.ceil(endTime / minorInterval) * minorInterval;
+        Math.floor(visibleStartTime / minorInterval) * minorInterval
+      );
+      const endMinor =
+        Math.ceil(visibleEndTime / minorInterval) * minorInterval;
 
       for (let time = startMinor; time <= endMinor; time += minorInterval) {
-        // 0초 미만은 건너뛰기
         if (time < 0) continue;
 
-        const x = getXFromTime(time, effectiveTimelineOffset, pixelsPerSecond);
-        if (x >= -50 && x <= timelineWidth + 50) {
-          // 주요 눈금과 겹치지 않는 경우만 추가
-          const isNotMajor = time % majorInterval !== 0;
-          if (isNotMajor) {
-            markers.push({
-              time,
-              x,
-              label: formatTime(time),
-              isSecond: false,
-              isMajor: false,
-              showLabel: false,
-            });
-          }
+        // 고정 기준점 기준으로 x 좌표 계산
+        const x = time * pixelsPerSecond;
+        // 주요 눈금과 겹치지 않는 경우만 추가
+        const isNotMajor = time % majorInterval !== 0;
+        if (isNotMajor) {
+          markers.push({
+            time,
+            x,
+            label: formatTime(time),
+            isSecond: false,
+            isMajor: false,
+            showLabel: false,
+          });
         }
       }
     }
 
     return markers.sort((a, b) => a.time - b.time);
-  }, [effectiveTimelineOffset, pixelsPerSecond, timelineScale, timelineWidth]);
+  }, [
+    timelineMode,
+    video.currentTime,
+    timelineOffset,
+    pixelsPerSecond,
+    timelineScale,
+    timelineWidth,
+  ]);
 
   // 현재 재생 위치 플레이헤드 스타일
   const playheadStyle = useMemo(() => {
@@ -239,14 +298,31 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
       if (!rect) return;
 
       const x = e.clientX - rect.left;
-      const time = Math.max(
-        0,
-        getTimeFromX(x, effectiveTimelineOffset, pixelsPerSecond)
-      ); // 0초 아래로 가지 않도록
+      let time: number;
+
+      if (timelineMode === "centered") {
+        // Centered 모드에서는 중앙 기준으로 시간 계산
+        const offsetFromCenter = x - centerX;
+        time = Math.max(
+          0,
+          video.currentTime + offsetFromCenter / pixelsPerSecond
+        );
+      } else {
+        // Free 모드에서는 timelineOffset 기준으로 계산
+        time = Math.max(0, timelineOffset + x / pixelsPerSecond);
+      }
 
       setCurrentTime(time);
     },
-    [isDragging, effectiveTimelineOffset, pixelsPerSecond, setCurrentTime]
+    [
+      isDragging,
+      timelineMode,
+      centerX,
+      video.currentTime,
+      pixelsPerSecond,
+      timelineOffset,
+      setCurrentTime,
+    ]
   );
 
   // 더블클릭으로 새 자막 추가
@@ -259,14 +335,15 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
       let time: number;
 
       if (timelineMode === "centered") {
-        // Centered 모드에서는 현재 동영상 시간 위치에 자막 추가
-        time = Math.max(0, video.currentTime); // 0초 아래로 가지 않도록
-      } else {
-        // Free 모드에서는 클릭한 위치에 자막 추가
+        // Centered 모드에서는 중앙 기준으로 시간 계산
+        const offsetFromCenter = x - centerX;
         time = Math.max(
           0,
-          getTimeFromX(x, effectiveTimelineOffset, pixelsPerSecond)
-        ); // 0초 아래로 가지 않도록
+          video.currentTime + offsetFromCenter / pixelsPerSecond
+        );
+      } else {
+        // Free 모드에서는 timelineOffset 기준으로 계산
+        time = Math.max(0, timelineOffset + x / pixelsPerSecond);
       }
 
       const newSubtitle = {
@@ -280,9 +357,10 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     },
     [
       timelineMode,
+      centerX,
       video.currentTime,
-      effectiveTimelineOffset,
       pixelsPerSecond,
+      timelineOffset,
       addSubtitle,
       selectSubtitle,
     ]
@@ -304,7 +382,7 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
           timelineScale={timelineScale}
           timelineMode={timelineMode}
           onScaleChange={setTimelineScale}
-          onModeChange={setTimelineMode}
+          onModeChange={handleModeChange}
           onFitToView={() => {
             if (!timelineRef.current || !video.duration) return;
             const newScale =
@@ -326,7 +404,10 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
           onDoubleClick={handleDoubleClick}
         >
           {/* 시간 눈금 */}
-          <div className="absolute top-0 left-0 w-full h-8 border-b border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900">
+          <div
+            className="absolute top-0 left-0 w-full h-8 border-b border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900"
+            style={{ transform: subtitleContainerTransform }}
+          >
             {timeMarkers.map((marker, index) => (
               <div
                 key={`${marker.time}-${index}`}
@@ -370,7 +451,10 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
           {/* 자막 바들 */}
           <div
             className="absolute top-8 left-0 w-full"
-            style={{ height: `${dynamicTimelineHeight - 32}px` }}
+            style={{
+              height: `${dynamicTimelineHeight - 32}px`,
+              transform: subtitleContainerTransform,
+            }}
           >
             {/* 레이어 구분선 - 레이어가 2개 이상일 때만 표시 */}
             {subtitleLayers.length > 1 &&
@@ -411,7 +495,7 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
                   <SubtitleBar
                     key={subtitle.id}
                     subtitle={subtitle}
-                    timelineOffset={effectiveTimelineOffset}
+                    timelineOffset={0} // 항상 0으로 고정 (컨테이너가 이동하므로)
                     pixelsPerSecond={pixelsPerSecond}
                     isSelected={subtitle.id === selectedSubtitleId}
                     tempPosition={tempPos}
@@ -451,18 +535,33 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
           {/* 동영상 길이를 넘어가는 부분 딤드 처리 */}
           {video.duration &&
             (() => {
-              const videoDurationX = getXFromTime(
-                video.duration,
-                effectiveTimelineOffset,
-                pixelsPerSecond
-              );
-              if (videoDurationX < timelineWidth) {
+              // 고정 좌표계에서 동영상 끝 위치 계산
+              const videoDurationX = video.duration * pixelsPerSecond;
+
+              // 현재 보이는 영역에서 동영상 끝 위치 계산
+              let visibleVideoDurationX: number;
+              if (timelineMode === "centered") {
+                visibleVideoDurationX =
+                  videoDurationX -
+                  video.currentTime * pixelsPerSecond +
+                  centerX;
+              } else {
+                visibleVideoDurationX =
+                  videoDurationX - timelineOffset * pixelsPerSecond;
+              }
+
+              if (
+                visibleVideoDurationX < timelineWidth &&
+                visibleVideoDurationX > 0
+              ) {
                 return (
                   <div
                     className="absolute top-0 bg-gray-900/20 dark:bg-gray-100/10 pointer-events-none z-5"
                     style={{
-                      left: `${Math.max(0, videoDurationX)}px`,
-                      width: `${timelineWidth - Math.max(0, videoDurationX)}px`,
+                      left: `${Math.max(0, visibleVideoDurationX)}px`,
+                      width: `${
+                        timelineWidth - Math.max(0, visibleVideoDurationX)
+                      }px`,
                       height: `${dynamicTimelineHeight}px`,
                     }}
                   >
@@ -475,18 +574,21 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
 
           {/* 0초 아래 부분 딤드 처리 */}
           {(() => {
-            const zeroX = getXFromTime(
-              0,
-              effectiveTimelineOffset,
-              pixelsPerSecond
-            );
-            if (zeroX > 0) {
+            // 현재 보이는 영역에서 0초 위치 계산
+            let visibleZeroX: number;
+            if (timelineMode === "centered") {
+              visibleZeroX = -video.currentTime * pixelsPerSecond + centerX;
+            } else {
+              visibleZeroX = -timelineOffset * pixelsPerSecond;
+            }
+
+            if (visibleZeroX > 0 && visibleZeroX < timelineWidth) {
               return (
                 <div
                   className="absolute top-0 bg-gray-900/30 dark:bg-gray-100/20 pointer-events-none z-5"
                   style={{
                     left: "0px",
-                    width: `${Math.min(timelineWidth, zeroX)}px`,
+                    width: `${Math.min(timelineWidth, visibleZeroX)}px`,
                     height: `${dynamicTimelineHeight}px`,
                   }}
                 >

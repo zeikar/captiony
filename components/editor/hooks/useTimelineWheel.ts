@@ -27,15 +27,27 @@ export function useTimelineWheel(
         // Zoom
         const rect = timelineElement.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
-        const mouseTime = getTimeFromX(mouseX, timelineOffset, pixelsPerSecond);
+
+        // 새로운 좌표 체계에 맞게 마우스 위치의 시간 계산
+        let mouseTime: number;
+        if (timelineMode === "centered") {
+          const centerX = rect.width / 2;
+          const offsetFromCenter = mouseX - centerX;
+          mouseTime = video.currentTime + offsetFromCenter / pixelsPerSecond;
+        } else {
+          mouseTime = timelineOffset + mouseX / pixelsPerSecond;
+        }
 
         const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
         const newScale = Math.max(0.5, Math.min(5, timelineScale * zoomFactor));
 
-        const newOffset = mouseTime - mouseX / (50 * newScale);
+        if (timelineMode === "free") {
+          // Free 모드에서만 offset 조정
+          const newOffset = mouseTime - mouseX / (50 * newScale);
+          setTimelineOffset(Math.max(0, newOffset));
+        }
 
         setTimelineScale(newScale);
-        setTimelineOffset(Math.max(0, newOffset));
       } else {
         // Scroll
         if (timelineMode === "centered") {
