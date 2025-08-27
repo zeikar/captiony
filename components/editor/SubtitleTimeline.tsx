@@ -14,9 +14,64 @@ import {
   arrangeSubtitlesInLayers,
   findOverlappingSubtitles,
 } from "./utils/timelineUtils";
-import { useMemo, useCallback, useState, useEffect } from "react";
+import { useMemo, useCallback, useState, useEffect, memo } from "react";
 
-export const SubtitleTimeline: React.FC = React.memo(() => {
+// TimelineMarker 컴포넌트 메모이제이션 - 불필요한 재렌더링 방지
+const TimelineMarker = memo(({ 
+  marker, 
+  dynamicTimelineHeight 
+}: { 
+  marker: {
+    time: number;
+    x: number;
+    label: string;
+    isSecond: boolean;
+    isMajor: boolean;
+    showLabel: boolean;
+  };
+  dynamicTimelineHeight: number;
+}) => (
+  <div
+    key={`${marker.time}-${marker.x}`}
+    className="absolute top-0"
+    style={{ left: `${marker.x}px` }}
+  >
+    {/* 주요 눈금에는 전체 높이 그리드 라인 */}
+    {marker.isMajor && (
+      <div
+        className="absolute top-0 w-px bg-gray-300 dark:bg-gray-600 opacity-40"
+        style={{ height: `${dynamicTimelineHeight}px` }}
+      />
+    )}
+
+    {/* 눈금 표시 */}
+    <div
+      className={`w-px relative z-10 ${
+        marker.isMajor
+          ? "bg-gray-600 dark:bg-gray-400 h-8"
+          : "bg-gray-400 dark:bg-gray-500 h-4"
+      }`}
+    />
+
+    {/* 시간 레이블 - 겹침 방지를 위해 조건부 표시 */}
+    {marker.showLabel && marker.label && (
+      <div
+        className="absolute left-1 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap font-mono bg-white/90 dark:bg-gray-900/90 px-1.5 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm"
+        style={{
+          top: marker.isMajor ? "32px" : "28px",
+          transform: "translateX(-50%)",
+          left: "0px",
+        }}
+      >
+        {marker.label}
+      </div>
+    )}
+  </div>
+));
+
+TimelineMarker.displayName = "TimelineMarker";
+
+export const SubtitleTimeline: React.FC = memo(() => {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [timelineWidth, setTimelineWidth] = useState(0);
 
@@ -35,30 +90,52 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
 
   const { video, setCurrentTime } = useVideoStore();
 
-  // Timeline width 감지를 위한 ResizeObserver
+  // Timeline width 감지를 위한 ResizeObserver - throttled로 성능 최적화
   useEffect(() => {
     if (!timelineRef.current) return;
 
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setTimelineWidth(entry.contentRect.width);
-      }
-    });
+    let rafId: number | null = null;
+    const handleResize = (entries: ResizeObserverEntry[]) => {
+      if (rafId) return;
+      
+      rafId = requestAnimationFrame(() => {
+        for (const entry of entries) {
+          setTimelineWidth(entry.contentRect.width);
+        }
+        rafId = null;
+      });
+    };
 
+    const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(timelineRef.current);
 
     // 초기 값 설정
     setTimelineWidth(timelineRef.current.clientWidth);
 
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
       resizeObserver.disconnect();
     };
   }, []);
 
-  // Constants
-  const basePixelsPerSecond = 50;
-  const pixelsPerSecond = basePixelsPerSecond * timelineScale;
-  const baseTimelineHeight = 120;
+  // Constants - 메모이제이션으로 재계산 방지
+  const constants = useMemo(() => {
+    const basePixelsPerSecond = 50;
+    const pixelsPerSecond = basePixelsPerSecond * timelineScale;
+    const baseTimelineHeight = 120;
+    const dynamicTimelineHeight = 200;
+    const centerX = timelineWidth / 2;
+    
+    return {
+      basePixelsPerSecond,
+      pixelsPerSecond,
+      baseTimelineHeight,
+      dynamicTimelineHeight,
+      centerX,
+    };
+  }, [timelineScale, timelineWidth]);
+
+  const { pixelsPerSecond, dynamicTimelineHeight, centerX, basePixelsPerSecond } = constants;
 
   // Custom hooks
   const { handleSubtitleMouseDown, isDragging, tempSubtitlePosition } =
@@ -159,12 +236,6 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     );
     return result;
   }, [subtitles, visibleTimeRange.start, visibleTimeRange.end]);
-
-  // 타임라인 높이를 부모 컨테이너에 맞게 설정
-  const dynamicTimelineHeight = 200; // 고정 높이 증가
-
-  // Centered 모드에서 사용할 계산된 값들
-  const centerX = timelineWidth / 2;
   const effectiveTimelineOffset = useMemo(() => {
     if (timelineMode === "centered") {
       // Centered 모드에서는 현재 시간을 중앙에 위치시키기 위해 offset 계산
@@ -217,100 +288,60 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
       visibleEndTime = timelineOffset + timelineWidth / pixelsPerSecond;
     }
 
+    // 줌 레벨에 따른 간격과 레이블 표시 간격 결정 - 미리 계산해서 반복 사용
+    const getIntervals = (scale: number) => {
+      if (scale < 0.3) return { major: 30, minor: 10, label: 30 };
+      if (scale < 0.6) return { major: 10, minor: 5, label: 10 };
+      if (scale < 1) return { major: 5, minor: 1, label: 5 };
+      if (scale < 2) return { major: 1, minor: 0.5, label: 2 };
+      if (scale < 4) return { major: 1, minor: 0.5, label: 1 };
+      return { major: 0.5, minor: 0.1, label: 1 };
+    };
+
+    const intervals = getIntervals(timelineScale);
     const markers = [];
 
-    // 줌 레벨에 따른 간격과 레이블 표시 간격 결정
-    let majorInterval = 1; // 주요 눈금 (초 단위)
-    let minorInterval = 0.5; // 보조 눈금
-    let labelInterval = 1; // 레이블 표시 간격
+    // 주요 눈금 생성 - 더 효율적인 루프
+    const startMajor = Math.max(0, Math.floor(visibleStartTime / intervals.major) * intervals.major);
+    const endMajor = Math.ceil(visibleEndTime / intervals.major) * intervals.major;
 
-    if (timelineScale < 0.3) {
-      majorInterval = 30;
-      minorInterval = 10;
-      labelInterval = 30;
-    } else if (timelineScale < 0.6) {
-      majorInterval = 10;
-      minorInterval = 5;
-      labelInterval = 10;
-    } else if (timelineScale < 1) {
-      majorInterval = 5;
-      minorInterval = 1;
-      labelInterval = 5;
-    } else if (timelineScale < 2) {
-      majorInterval = 1;
-      minorInterval = 0.5;
-      labelInterval = 2; // 2초마다 레이블 표시
-    } else if (timelineScale < 4) {
-      majorInterval = 1;
-      minorInterval = 0.5;
-      labelInterval = 1;
-    } else {
-      majorInterval = 0.5;
-      minorInterval = 0.1;
-      labelInterval = 1;
-    }
-
-    // 주요 눈금 생성
-    const startMajor = Math.max(
-      0,
-      Math.floor(visibleStartTime / majorInterval) * majorInterval
-    );
-    const endMajor = Math.ceil(visibleEndTime / majorInterval) * majorInterval;
-
-    for (let time = startMajor; time <= endMajor; time += majorInterval) {
+    for (let time = startMajor; time <= endMajor; time += intervals.major) {
       if (time < 0) continue;
 
-      // 고정 기준점(timelineOffset = 0) 기준으로 x 좌표 계산
       const x = time * pixelsPerSecond;
-      const shouldShowLabel = time % labelInterval === 0;
+      const shouldShowLabel = time % intervals.label === 0;
       markers.push({
         time,
         x,
-        label: formatTime(time),
+        label: shouldShowLabel ? formatTime(time) : "",
         isSecond: true,
         isMajor: true,
         showLabel: shouldShowLabel,
       });
     }
 
-    // 보조 눈금 생성 (줌이 충분할 때만)
+    // 보조 눈금 생성 - 조건부 처리로 성능 최적화
     if (timelineScale >= 1) {
-      const startMinor = Math.max(
-        0,
-        Math.floor(visibleStartTime / minorInterval) * minorInterval
-      );
-      const endMinor =
-        Math.ceil(visibleEndTime / minorInterval) * minorInterval;
+      const startMinor = Math.max(0, Math.floor(visibleStartTime / intervals.minor) * intervals.minor);
+      const endMinor = Math.ceil(visibleEndTime / intervals.minor) * intervals.minor;
 
-      for (let time = startMinor; time <= endMinor; time += minorInterval) {
-        if (time < 0) continue;
+      for (let time = startMinor; time <= endMinor; time += intervals.minor) {
+        if (time < 0 || time % intervals.major === 0) continue;
 
-        // 고정 기준점 기준으로 x 좌표 계산
         const x = time * pixelsPerSecond;
-        // 주요 눈금과 겹치지 않는 경우만 추가
-        const isNotMajor = time % majorInterval !== 0;
-        if (isNotMajor) {
-          markers.push({
-            time,
-            x,
-            label: formatTime(time),
-            isSecond: false,
-            isMajor: false,
-            showLabel: false,
-          });
-        }
+        markers.push({
+          time,
+          x,
+          label: "",
+          isSecond: false,
+          isMajor: false,
+          showLabel: false,
+        });
       }
     }
 
     return markers.sort((a, b) => a.time - b.time);
-  }, [
-    timelineMode,
-    video.currentTime,
-    timelineOffset,
-    pixelsPerSecond,
-    timelineScale,
-    timelineWidth,
-  ]);
+  }, [timelineMode, video.currentTime, timelineOffset, pixelsPerSecond, timelineScale, timelineWidth]);
 
   // 현재 재생 위치 플레이헤드 스타일
   const playheadStyle = useMemo(() => {
@@ -343,63 +374,37 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     timelineWidth,
   ]);
 
-  // 타임라인 클릭 핸들러
+  // 더블클릭으로 새 자막 추가 - 시간 계산 함수 분리로 성능 최적화
+  const calculateTimeFromClick = useCallback(
+    (clientX: number) => {
+      const rect = timelineRef.current?.getBoundingClientRect();
+      if (!rect) return 0;
+
+      const x = clientX - rect.left;
+      
+      if (timelineMode === "centered") {
+        const offsetFromCenter = x - centerX;
+        return Math.max(0, video.currentTime + offsetFromCenter / pixelsPerSecond);
+      } else {
+        return Math.max(0, timelineOffset + x / pixelsPerSecond);
+      }
+    },
+    [timelineMode, centerX, video.currentTime, pixelsPerSecond, timelineOffset]
+  );
+
+  // 타임라인 클릭 핸들러 - 공통 함수 사용으로 최적화
   const handleTimelineClick = useCallback(
     (e: React.MouseEvent) => {
       if (isDragging) return;
-
-      const rect = timelineRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      const x = e.clientX - rect.left;
-      let time: number;
-
-      if (timelineMode === "centered") {
-        // Centered 모드에서는 중앙 기준으로 시간 계산
-        const offsetFromCenter = x - centerX;
-        time = Math.max(
-          0,
-          video.currentTime + offsetFromCenter / pixelsPerSecond
-        );
-      } else {
-        // Free 모드에서는 timelineOffset 기준으로 계산
-        time = Math.max(0, timelineOffset + x / pixelsPerSecond);
-      }
-
+      const time = calculateTimeFromClick(e.clientX);
       setCurrentTime(time);
     },
-    [
-      isDragging,
-      timelineMode,
-      centerX,
-      video.currentTime,
-      pixelsPerSecond,
-      timelineOffset,
-      setCurrentTime,
-    ]
+    [isDragging, calculateTimeFromClick, setCurrentTime]
   );
 
-  // 더블클릭으로 새 자막 추가
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
-      const rect = timelineRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      const x = e.clientX - rect.left;
-      let time: number;
-
-      if (timelineMode === "centered") {
-        // Centered 모드에서는 중앙 기준으로 시간 계산
-        const offsetFromCenter = x - centerX;
-        time = Math.max(
-          0,
-          video.currentTime + offsetFromCenter / pixelsPerSecond
-        );
-      } else {
-        // Free 모드에서는 timelineOffset 기준으로 계산
-        time = Math.max(0, timelineOffset + x / pixelsPerSecond);
-      }
-
+      const time = calculateTimeFromClick(e.clientX);
       const newSubtitle = {
         startTime: time,
         endTime: time + 2,
@@ -409,15 +414,7 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
       addSubtitle(newSubtitle);
       selectSubtitle(Date.now().toString()); // 임시 ID, 실제로는 addSubtitle에서 반환된 ID를 사용해야 함
     },
-    [
-      timelineMode,
-      centerX,
-      video.currentTime,
-      pixelsPerSecond,
-      timelineOffset,
-      addSubtitle,
-      selectSubtitle,
-    ]
+    [calculateTimeFromClick, addSubtitle, selectSubtitle]
   );
 
   // 자막 마우스다운 핸들러
@@ -462,43 +459,12 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
             className="absolute top-0 left-0 w-full h-8 border-b border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900"
             style={{ transform: subtitleContainerTransform }}
           >
-            {timeMarkers.map((marker, index) => (
-              <div
-                key={`${marker.time}-${index}`}
-                className="absolute top-0"
-                style={{ left: `${marker.x}px` }}
-              >
-                {/* 주요 눈금에는 전체 높이 그리드 라인 */}
-                {marker.isMajor && (
-                  <div
-                    className="absolute top-0 w-px bg-gray-300 dark:bg-gray-600 opacity-40"
-                    style={{ height: `${dynamicTimelineHeight}px` }}
-                  />
-                )}
-
-                {/* 눈금 표시 */}
-                <div
-                  className={`w-px relative z-10 ${
-                    marker.isMajor
-                      ? "bg-gray-600 dark:bg-gray-400 h-8"
-                      : "bg-gray-400 dark:bg-gray-500 h-4"
-                  }`}
-                />
-
-                {/* 시간 레이블 - 겹침 방지를 위해 조건부 표시 */}
-                {marker.showLabel && (
-                  <div
-                    className="absolute left-1 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap font-mono bg-white/90 dark:bg-gray-900/90 px-1.5 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm"
-                    style={{
-                      top: marker.isMajor ? "32px" : "28px",
-                      transform: "translateX(-50%)",
-                      left: "0px",
-                    }}
-                  >
-                    {marker.label}
-                  </div>
-                )}
-              </div>
+            {timeMarkers.map((marker) => (
+              <TimelineMarker
+                key={`${marker.time}-${marker.x}`}
+                marker={marker}
+                dynamicTimelineHeight={dynamicTimelineHeight}
+              />
             ))}
           </div>
 
@@ -535,15 +501,18 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
                       }
                     : null;
 
-                // 겹침 확인 (드래그 중이면 임시 위치 기준으로 확인)
-                const currentPosition = tempPos
-                  ? { ...subtitle, ...tempPos }
-                  : subtitle;
-                const overlappingSubtitles = findOverlappingSubtitles(
-                  overlapCandidates,
-                  currentPosition
-                );
-                const hasOverlap = overlappingSubtitles.length > 0;
+                // 겹침 확인 최적화 - 필요할 때만 계산
+                const currentPosition = tempPos ? { ...subtitle, ...tempPos } : subtitle;
+                let hasOverlap = false;
+                
+                // 드래그 중이거나 선택된 자막만 겹침 검사 (성능 최적화)
+                if (subtitle.id === selectedSubtitleId || tempPos) {
+                  const overlappingSubtitles = findOverlappingSubtitles(
+                    overlapCandidates,
+                    currentPosition
+                  );
+                  hasOverlap = overlappingSubtitles.length > 0;
+                }
 
                 return (
                   <SubtitleBar
@@ -657,3 +626,5 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     </div>
   );
 });
+
+SubtitleTimeline.displayName = "SubtitleTimeline";
