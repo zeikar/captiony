@@ -104,6 +104,62 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
     return arrangeSubtitlesInLayers(subtitles);
   }, [subtitles]);
 
+  // 현재 보이는 시간 범위 계산 (가상 리스트 윈도우)
+  const visibleTimeRange = useMemo(() => {
+    if (timelineWidth === 0 || pixelsPerSecond === 0) {
+      return { start: 0, end: 0, overscan: 0 };
+    }
+
+    // 화면에 보이는 시간 길이(초)
+    const visibleSeconds = timelineWidth / pixelsPerSecond;
+    // 과도한 재렌더 방지를 위한 오버스캔 (보이는 구간의 25% 또는 최소 2초)
+    const overscan = Math.max(2, visibleSeconds * 0.25);
+
+    if (timelineMode === "centered") {
+      const half = visibleSeconds / 2;
+      const start = Math.max(0, video.currentTime - half - overscan);
+      const end = video.currentTime + half + overscan;
+      return { start, end, overscan };
+    } else {
+      const start = Math.max(0, timelineOffset - overscan);
+      const end = timelineOffset + visibleSeconds + overscan;
+      return { start, end, overscan };
+    }
+  }, [timelineWidth, pixelsPerSecond, timelineMode, video.currentTime, timelineOffset]);
+
+  // 보이는 자막만 필터링 (간단한 가상 리스트)
+  const visibleSubtitleLayers = useMemo(() => {
+    // dragging 중인 자막은 항상 렌더링 유지
+    const draggingId = tempSubtitlePosition?.id;
+
+    const intersects = (start: number, end: number) => {
+      return end >= visibleTimeRange.start && start <= visibleTimeRange.end;
+    };
+
+    return subtitleLayers.map((layer) =>
+      layer.filter((subtitle) => {
+        // 음수로 끝나는 자막은 스킵 (기존 로직 유지)
+        if (subtitle.endTime < 0) return false;
+
+        // 드래그 중인 자막은 무조건 유지
+        if (draggingId && subtitle.id === draggingId) return true;
+
+        // 렌더 가시성 판단
+        const startTime = subtitle.startTime;
+        const endTime = subtitle.endTime;
+        return intersects(startTime, endTime);
+      })
+    );
+  }, [subtitleLayers, visibleTimeRange.start, visibleTimeRange.end, tempSubtitlePosition?.id]);
+
+  // 겹침 체크용 후보 풀: 보이는 범위(오버스캔 포함)에 교차하는 자막만
+  const overlapCandidates = useMemo(() => {
+    const result = subtitles.filter(
+      (s) => s.endTime >= visibleTimeRange.start && s.startTime <= visibleTimeRange.end
+    );
+    return result;
+  }, [subtitles, visibleTimeRange.start, visibleTimeRange.end]);
+
   // 타임라인 높이를 부모 컨테이너에 맞게 설정
   const dynamicTimelineHeight = 200; // 고정 높이 증가
 
@@ -464,7 +520,7 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
                 />
               ))}
 
-            {subtitleLayers.map((layer, layerIndex) =>
+            {visibleSubtitleLayers.map((layer, layerIndex) =>
               layer.map((subtitle) => {
                 // 자막이 0초 미만에서 시작하거나 끝나면 렌더링하지 않음
                 if (subtitle.endTime < 0) return null;
@@ -484,7 +540,7 @@ export const SubtitleTimeline: React.FC = React.memo(() => {
                   ? { ...subtitle, ...tempPos }
                   : subtitle;
                 const overlappingSubtitles = findOverlappingSubtitles(
-                  subtitles,
+                  overlapCandidates,
                   currentPosition
                 );
                 const hasOverlap = overlappingSubtitles.length > 0;
