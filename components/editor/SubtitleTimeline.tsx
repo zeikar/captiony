@@ -3,73 +3,22 @@
 import React, { useRef } from "react";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
 import { useVideoStore } from "@/lib/stores/video-store";
-import { SubtitleBar } from "./components/SubtitleBar";
 import { TimelineControls } from "./components/TimelineControls";
+import { TimelineGrid } from "./components/TimelineGrid";
+import { TimelinePlayhead } from "./components/TimelinePlayhead";
+import { TimelineDimmingOverlay } from "./components/TimelineDimmingOverlay";
+import { SubtitleLayer } from "./components/SubtitleLayer";
+import { TimelineCenterReference } from "./components/TimelineCenterReference";
 import { useSubtitleDrag } from "./hooks/useSubtitleDrag";
 import { useTimelineWheel } from "./hooks/useTimelineWheel";
+import { useTimelineMarkers } from "./hooks/useTimelineMarkers";
+import { usePlayheadStyle } from "./hooks/usePlayheadStyle";
+import { useTimelineClicks } from "./hooks/useTimelineClicks";
 import {
-  formatTime,
-  getTimeFromX,
-  getXFromTime,
   arrangeSubtitlesInLayers,
   findOverlappingSubtitles,
 } from "./utils/timelineUtils";
 import { useMemo, useCallback, useState, useEffect, memo } from "react";
-
-// TimelineMarker 컴포넌트 메모이제이션 - 불필요한 재렌더링 방지
-const TimelineMarker = memo(({ 
-  marker, 
-  dynamicTimelineHeight 
-}: { 
-  marker: {
-    time: number;
-    x: number;
-    label: string;
-    isSecond: boolean;
-    isMajor: boolean;
-    showLabel: boolean;
-  };
-  dynamicTimelineHeight: number;
-}) => (
-  <div
-    key={`${marker.time}-${marker.x}`}
-    className="absolute top-0"
-    style={{ left: `${marker.x}px` }}
-  >
-    {/* 주요 눈금에는 전체 높이 그리드 라인 */}
-    {marker.isMajor && (
-      <div
-        className="absolute top-0 w-px bg-gray-300 dark:bg-gray-600 opacity-40"
-        style={{ height: `${dynamicTimelineHeight}px` }}
-      />
-    )}
-
-    {/* 눈금 표시 */}
-    <div
-      className={`w-px relative z-10 ${
-        marker.isMajor
-          ? "bg-gray-600 dark:bg-gray-400 h-8"
-          : "bg-gray-400 dark:bg-gray-500 h-4"
-      }`}
-    />
-
-    {/* 시간 레이블 - 겹침 방지를 위해 조건부 표시 */}
-    {marker.showLabel && marker.label && (
-      <div
-        className="absolute left-1 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap font-mono bg-white/90 dark:bg-gray-900/90 px-1.5 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm"
-        style={{
-          top: marker.isMajor ? "32px" : "28px",
-          transform: "translateX(-50%)",
-          left: "0px",
-        }}
-      >
-        {marker.label}
-      </div>
-    )}
-  </div>
-));
-
-TimelineMarker.displayName = "TimelineMarker";
 
 export const SubtitleTimeline: React.FC = memo(() => {
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -97,7 +46,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
     let rafId: number | null = null;
     const handleResize = (entries: ResizeObserverEntry[]) => {
       if (rafId) return;
-      
+
       rafId = requestAnimationFrame(() => {
         for (const entry of entries) {
           setTimelineWidth(entry.contentRect.width);
@@ -125,7 +74,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
     const baseTimelineHeight = 120;
     const dynamicTimelineHeight = 200;
     const centerX = timelineWidth / 2;
-    
+
     return {
       basePixelsPerSecond,
       pixelsPerSecond,
@@ -135,14 +84,16 @@ export const SubtitleTimeline: React.FC = memo(() => {
     };
   }, [timelineScale, timelineWidth]);
 
-  const { pixelsPerSecond, dynamicTimelineHeight, centerX, basePixelsPerSecond } = constants;
+  const {
+    pixelsPerSecond,
+    dynamicTimelineHeight,
+    centerX,
+    basePixelsPerSecond,
+  } = constants;
 
   // Custom hooks
   const { handleSubtitleMouseDown, isDragging, tempSubtitlePosition } =
     useSubtitleDrag(pixelsPerSecond);
-
-  // 플레이헤드를 위한 별도 ref 생성 (실제로는 timelineRef와 다른 용도)
-  const playheadRef = useRef<HTMLDivElement>(null);
 
   useTimelineWheel(
     timelineRef as React.RefObject<HTMLDivElement>,
@@ -151,6 +102,55 @@ export const SubtitleTimeline: React.FC = memo(() => {
     pixelsPerSecond,
     timelineMode
   );
+
+  // effectiveTimelineOffset 계산
+  const effectiveTimelineOffset = useMemo(() => {
+    if (timelineMode === "centered") {
+      // Centered 모드에서는 현재 시간을 중앙에 위치시키기 위해 offset 계산
+      return video.currentTime - centerX / pixelsPerSecond;
+    }
+    return timelineOffset;
+  }, [
+    timelineMode,
+    video.currentTime,
+    centerX,
+    pixelsPerSecond,
+    timelineOffset,
+  ]);
+
+  // 시간 눈금 생성 (훅으로 분리)
+  const timelineMarkers = useTimelineMarkers({
+    timelineWidth,
+    timelineMode,
+    video,
+    timelineOffset,
+    pixelsPerSecond,
+    timelineScale,
+  });
+
+  // 플레이헤드 스타일 (훅으로 분리)
+  const playheadStyleHook = usePlayheadStyle({
+    timelineMode,
+    centerX,
+    video,
+    effectiveTimelineOffset,
+    pixelsPerSecond,
+    timelineWidth,
+  });
+
+  // 타임라인 클릭/더블클릭 핸들러 (훅으로 분리)
+  const { handleTimelineClick, handleDoubleClick } = useTimelineClicks({
+    timelineRef: timelineRef as React.RefObject<HTMLDivElement>,
+    timelineMode,
+    centerX,
+    video,
+    pixelsPerSecond,
+    timelineOffset,
+    isDragging,
+    setCurrentTime,
+    addSubtitle,
+    selectSubtitle,
+  });
 
   // 모드 변경 핸들러 (free 모드로 바뀔 때 현재 재생 시간으로 이동)
   const handleModeChange = useCallback(
@@ -202,7 +202,13 @@ export const SubtitleTimeline: React.FC = memo(() => {
       const end = timelineOffset + visibleSeconds + overscan;
       return { start, end, overscan };
     }
-  }, [timelineWidth, pixelsPerSecond, timelineMode, video.currentTime, timelineOffset]);
+  }, [
+    timelineWidth,
+    pixelsPerSecond,
+    timelineMode,
+    video.currentTime,
+    timelineOffset,
+  ]);
 
   // 보이는 자막만 필터링 (간단한 가상 리스트)
   const visibleSubtitleLayers = useMemo(() => {
@@ -227,28 +233,22 @@ export const SubtitleTimeline: React.FC = memo(() => {
         return intersects(startTime, endTime);
       })
     );
-  }, [subtitleLayers, visibleTimeRange.start, visibleTimeRange.end, tempSubtitlePosition?.id]);
+  }, [
+    subtitleLayers,
+    visibleTimeRange.start,
+    visibleTimeRange.end,
+    tempSubtitlePosition?.id,
+  ]);
 
   // 겹침 체크용 후보 풀: 보이는 범위(오버스캔 포함)에 교차하는 자막만
   const overlapCandidates = useMemo(() => {
     const result = subtitles.filter(
-      (s) => s.endTime >= visibleTimeRange.start && s.startTime <= visibleTimeRange.end
+      (s) =>
+        s.endTime >= visibleTimeRange.start &&
+        s.startTime <= visibleTimeRange.end
     );
     return result;
   }, [subtitles, visibleTimeRange.start, visibleTimeRange.end]);
-  const effectiveTimelineOffset = useMemo(() => {
-    if (timelineMode === "centered") {
-      // Centered 모드에서는 현재 시간을 중앙에 위치시키기 위해 offset 계산
-      return video.currentTime - centerX / pixelsPerSecond;
-    }
-    return timelineOffset;
-  }, [
-    timelineMode,
-    video.currentTime,
-    centerX,
-    pixelsPerSecond,
-    timelineOffset,
-  ]);
 
   // 자막 컨테이너 이동을 위한 transform 계산 (성능 최적화)
   const subtitleContainerTransform = useMemo(() => {
@@ -267,155 +267,6 @@ export const SubtitleTimeline: React.FC = memo(() => {
     centerX,
     timelineOffset,
   ]);
-
-  // 시간 눈금 생성 (성능 최적화를 위해 고정 기준점 사용)
-  const timeMarkers = useMemo(() => {
-    // timelineWidth가 0이면 빈 배열 반환
-    if (timelineWidth === 0) return [];
-
-    // 현재 표시되는 시간 범위 계산
-    let visibleStartTime: number;
-    let visibleEndTime: number;
-
-    if (timelineMode === "centered") {
-      // Centered 모드에서는 현재 시간 기준으로 좌우 표시 범위 계산
-      const halfVisible = timelineWidth / (2 * pixelsPerSecond);
-      visibleStartTime = Math.max(0, video.currentTime - halfVisible);
-      visibleEndTime = video.currentTime + halfVisible;
-    } else {
-      // Free 모드에서는 timelineOffset 기준
-      visibleStartTime = Math.max(0, timelineOffset);
-      visibleEndTime = timelineOffset + timelineWidth / pixelsPerSecond;
-    }
-
-    // 줌 레벨에 따른 간격과 레이블 표시 간격 결정 - 미리 계산해서 반복 사용
-    const getIntervals = (scale: number) => {
-      if (scale < 0.3) return { major: 30, minor: 10, label: 30 };
-      if (scale < 0.6) return { major: 10, minor: 5, label: 10 };
-      if (scale < 1) return { major: 5, minor: 1, label: 5 };
-      if (scale < 2) return { major: 1, minor: 0.5, label: 2 };
-      if (scale < 4) return { major: 1, minor: 0.5, label: 1 };
-      return { major: 0.5, minor: 0.1, label: 1 };
-    };
-
-    const intervals = getIntervals(timelineScale);
-    const markers = [];
-
-    // 주요 눈금 생성 - 더 효율적인 루프
-    const startMajor = Math.max(0, Math.floor(visibleStartTime / intervals.major) * intervals.major);
-    const endMajor = Math.ceil(visibleEndTime / intervals.major) * intervals.major;
-
-    for (let time = startMajor; time <= endMajor; time += intervals.major) {
-      if (time < 0) continue;
-
-      const x = time * pixelsPerSecond;
-      const shouldShowLabel = time % intervals.label === 0;
-      markers.push({
-        time,
-        x,
-        label: shouldShowLabel ? formatTime(time) : "",
-        isSecond: true,
-        isMajor: true,
-        showLabel: shouldShowLabel,
-      });
-    }
-
-    // 보조 눈금 생성 - 조건부 처리로 성능 최적화
-    if (timelineScale >= 1) {
-      const startMinor = Math.max(0, Math.floor(visibleStartTime / intervals.minor) * intervals.minor);
-      const endMinor = Math.ceil(visibleEndTime / intervals.minor) * intervals.minor;
-
-      for (let time = startMinor; time <= endMinor; time += intervals.minor) {
-        if (time < 0 || time % intervals.major === 0) continue;
-
-        const x = time * pixelsPerSecond;
-        markers.push({
-          time,
-          x,
-          label: "",
-          isSecond: false,
-          isMajor: false,
-          showLabel: false,
-        });
-      }
-    }
-
-    return markers.sort((a, b) => a.time - b.time);
-  }, [timelineMode, video.currentTime, timelineOffset, pixelsPerSecond, timelineScale, timelineWidth]);
-
-  // 현재 재생 위치 플레이헤드 스타일
-  const playheadStyle = useMemo(() => {
-    if (timelineMode === "centered") {
-      // Centered 모드에서는 플레이헤드가 중앙에 고정
-      return {
-        transform: `translate3d(${centerX}px, 0, 0)`,
-        visibility: "visible" as "visible" | "hidden",
-      };
-    } else {
-      // Free 모드에서는 기존 방식
-      const x = getXFromTime(
-        video.currentTime,
-        effectiveTimelineOffset,
-        pixelsPerSecond
-      );
-      return {
-        transform: `translate3d(${x}px, 0, 0)`,
-        visibility: (x >= -2 && x <= timelineWidth + 2
-          ? "visible"
-          : "hidden") as "visible" | "hidden",
-      };
-    }
-  }, [
-    timelineMode,
-    centerX,
-    video.currentTime,
-    effectiveTimelineOffset,
-    pixelsPerSecond,
-    timelineWidth,
-  ]);
-
-  // 더블클릭으로 새 자막 추가 - 시간 계산 함수 분리로 성능 최적화
-  const calculateTimeFromClick = useCallback(
-    (clientX: number) => {
-      const rect = timelineRef.current?.getBoundingClientRect();
-      if (!rect) return 0;
-
-      const x = clientX - rect.left;
-      
-      if (timelineMode === "centered") {
-        const offsetFromCenter = x - centerX;
-        return Math.max(0, video.currentTime + offsetFromCenter / pixelsPerSecond);
-      } else {
-        return Math.max(0, timelineOffset + x / pixelsPerSecond);
-      }
-    },
-    [timelineMode, centerX, video.currentTime, pixelsPerSecond, timelineOffset]
-  );
-
-  // 타임라인 클릭 핸들러 - 공통 함수 사용으로 최적화
-  const handleTimelineClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (isDragging) return;
-      const time = calculateTimeFromClick(e.clientX);
-      setCurrentTime(time);
-    },
-    [isDragging, calculateTimeFromClick, setCurrentTime]
-  );
-
-  const handleDoubleClick = useCallback(
-    (e: React.MouseEvent) => {
-      const time = calculateTimeFromClick(e.clientX);
-      const newSubtitle = {
-        startTime: time,
-        endTime: time + 2,
-        text: "새 자막",
-      };
-
-      addSubtitle(newSubtitle);
-      selectSubtitle(Date.now().toString()); // 임시 ID, 실제로는 addSubtitle에서 반환된 ID를 사용해야 함
-    },
-    [calculateTimeFromClick, addSubtitle, selectSubtitle]
-  );
 
   // 자막 마우스다운 핸들러
   const handleMouseDown = useCallback(
@@ -455,172 +306,48 @@ export const SubtitleTimeline: React.FC = memo(() => {
           onDoubleClick={handleDoubleClick}
         >
           {/* 시간 눈금 */}
-          <div
-            className="absolute top-0 left-0 w-full h-8 border-b border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900"
-            style={{ transform: subtitleContainerTransform }}
-          >
-            {timeMarkers.map((marker) => (
-              <TimelineMarker
-                key={`${marker.time}-${marker.x}`}
-                marker={marker}
-                dynamicTimelineHeight={dynamicTimelineHeight}
-              />
-            ))}
-          </div>
+          <TimelineGrid
+            timeMarkers={timelineMarkers}
+            dynamicTimelineHeight={dynamicTimelineHeight}
+            subtitleContainerTransform={subtitleContainerTransform}
+          />
 
           {/* 자막 바들 */}
-          <div
-            className="absolute top-8 left-0 w-full"
-            style={{
-              height: `${dynamicTimelineHeight - 32}px`,
-              transform: subtitleContainerTransform,
-            }}
-          >
-            {/* 레이어 구분선 - 레이어가 2개 이상일 때만 표시 */}
-            {subtitleLayers.length > 1 &&
-              subtitleLayers.map((_, layerIndex) => (
-                <div
-                  key={`layer-line-${layerIndex}`}
-                  className="absolute left-0 w-full h-px bg-gray-200 dark:bg-gray-700 opacity-50"
-                  style={{ top: `${16 + layerIndex * 16 + 48}px` }}
-                />
-              ))}
-
-            {visibleSubtitleLayers.map((layer, layerIndex) =>
-              layer.map((subtitle) => {
-                // 자막이 0초 미만에서 시작하거나 끝나면 렌더링하지 않음
-                if (subtitle.endTime < 0) return null;
-
-                // 드래그 중인 자막의 임시 위치 확인
-                const tempPos =
-                  tempSubtitlePosition &&
-                  tempSubtitlePosition.id === subtitle.id
-                    ? {
-                        startTime: tempSubtitlePosition.startTime,
-                        endTime: tempSubtitlePosition.endTime,
-                      }
-                    : null;
-
-                // 겹침 확인 최적화 - 필요할 때만 계산
-                const currentPosition = tempPos ? { ...subtitle, ...tempPos } : subtitle;
-                let hasOverlap = false;
-                
-                // 드래그 중이거나 선택된 자막만 겹침 검사 (성능 최적화)
-                if (subtitle.id === selectedSubtitleId || tempPos) {
-                  const overlappingSubtitles = findOverlappingSubtitles(
-                    overlapCandidates,
-                    currentPosition
-                  );
-                  hasOverlap = overlappingSubtitles.length > 0;
-                }
-
-                return (
-                  <SubtitleBar
-                    key={subtitle.id}
-                    subtitle={subtitle}
-                    timelineOffset={0} // 항상 0으로 고정 (컨테이너가 이동하므로)
-                    pixelsPerSecond={pixelsPerSecond}
-                    isSelected={subtitle.id === selectedSubtitleId}
-                    tempPosition={tempPos}
-                    layerIndex={layerIndex}
-                    hasOverlap={hasOverlap}
-                    onMouseDown={handleMouseDown}
-                  />
-                );
-              })
-            )}
-          </div>
+          <SubtitleLayer
+            visibleSubtitleLayers={visibleSubtitleLayers}
+            selectedSubtitleId={selectedSubtitleId}
+            tempSubtitlePosition={tempSubtitlePosition}
+            overlapCandidates={overlapCandidates}
+            pixelsPerSecond={pixelsPerSecond}
+            subtitleContainerTransform={subtitleContainerTransform}
+            dynamicTimelineHeight={dynamicTimelineHeight}
+            onMouseDown={handleMouseDown}
+            findOverlappingSubtitles={findOverlappingSubtitles}
+          />
 
           {/* 플레이헤드 */}
-          <div
-            className="absolute top-0 w-0.5 bg-blue-600 dark:bg-blue-500 pointer-events-none z-10"
-            style={{
-              height: `${dynamicTimelineHeight}px`,
-              ...playheadStyle,
-            }}
-          >
-            <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-blue-600 dark:bg-blue-500 rounded-sm" />
-          </div>
+          <TimelinePlayhead
+            dynamicTimelineHeight={dynamicTimelineHeight}
+            playheadStyle={playheadStyleHook}
+          />
 
           {/* Centered 모드에서 중앙 참조선 */}
-          {timelineMode === "centered" && (
-            <div
-              className="absolute top-0 w-px bg-red-400 dark:bg-red-500 pointer-events-none z-5 opacity-30"
-              style={{
-                height: `${dynamicTimelineHeight}px`,
-                left: `${centerX}px`,
-              }}
-            >
-              <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-400 dark:bg-red-500 rounded-full opacity-50" />
-            </div>
-          )}
+          <TimelineCenterReference
+            timelineMode={timelineMode}
+            centerX={centerX}
+            dynamicTimelineHeight={dynamicTimelineHeight}
+          />
 
-          {/* 동영상 길이를 넘어가는 부분 딤드 처리 */}
-          {video.duration &&
-            (() => {
-              // 고정 좌표계에서 동영상 끝 위치 계산
-              const videoDurationX = video.duration * pixelsPerSecond;
-
-              // 현재 보이는 영역에서 동영상 끝 위치 계산
-              let visibleVideoDurationX: number;
-              if (timelineMode === "centered") {
-                visibleVideoDurationX =
-                  videoDurationX -
-                  video.currentTime * pixelsPerSecond +
-                  centerX;
-              } else {
-                visibleVideoDurationX =
-                  videoDurationX - timelineOffset * pixelsPerSecond;
-              }
-
-              if (
-                visibleVideoDurationX < timelineWidth &&
-                visibleVideoDurationX > 0
-              ) {
-                return (
-                  <div
-                    className="absolute top-0 bg-gray-900/20 dark:bg-gray-100/10 pointer-events-none z-5"
-                    style={{
-                      left: `${Math.max(0, visibleVideoDurationX)}px`,
-                      width: `${
-                        timelineWidth - Math.max(0, visibleVideoDurationX)
-                      }px`,
-                      height: `${dynamicTimelineHeight}px`,
-                    }}
-                  >
-                    <div className="absolute left-0 top-0 w-0.5 h-full bg-orange-500 dark:bg-orange-400 opacity-60" />
-                  </div>
-                );
-              }
-              return null;
-            })()}
-
-          {/* 0초 아래 부분 딤드 처리 */}
-          {(() => {
-            // 현재 보이는 영역에서 0초 위치 계산
-            let visibleZeroX: number;
-            if (timelineMode === "centered") {
-              visibleZeroX = -video.currentTime * pixelsPerSecond + centerX;
-            } else {
-              visibleZeroX = -timelineOffset * pixelsPerSecond;
-            }
-
-            if (visibleZeroX > 0 && visibleZeroX < timelineWidth) {
-              return (
-                <div
-                  className="absolute top-0 bg-gray-900/30 dark:bg-gray-100/20 pointer-events-none z-5"
-                  style={{
-                    left: "0px",
-                    width: `${Math.min(timelineWidth, visibleZeroX)}px`,
-                    height: `${dynamicTimelineHeight}px`,
-                  }}
-                >
-                  <div className="absolute right-0 top-0 w-0.5 h-full bg-red-500 dark:bg-red-400 opacity-60" />
-                </div>
-              );
-            }
-            return null;
-          })()}
+          {/* 딤드 오버레이 */}
+          <TimelineDimmingOverlay
+            timelineMode={timelineMode}
+            video={video}
+            pixelsPerSecond={pixelsPerSecond}
+            centerX={centerX}
+            timelineOffset={timelineOffset}
+            timelineWidth={timelineWidth}
+            dynamicTimelineHeight={dynamicTimelineHeight}
+          />
         </div>
       </div>
     </div>
