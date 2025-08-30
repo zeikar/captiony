@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import {
   PencilIcon,
   TrashIcon,
@@ -30,7 +30,7 @@ interface SubtitleItemProps {
   formatTime: (seconds: number) => string;
 }
 
-export function SubtitleItem({
+function SubtitleItemComponent({
   subtitle,
   index,
   isSelected,
@@ -165,6 +165,28 @@ export function SubtitleItem({
     </div>
   );
 }
+
+// Avoid re-rendering unchanged items during playback/scroll/other updates
+function areSubtitleItemPropsEqual(
+  prev: Readonly<SubtitleItemProps>,
+  next: Readonly<SubtitleItemProps>
+) {
+  return (
+    prev.subtitle === next.subtitle &&
+    prev.index === next.index &&
+    prev.isSelected === next.isSelected &&
+    prev.isEditing === next.isEditing &&
+    (prev.isCurrent ?? false) === (next.isCurrent ?? false) &&
+    // ignore function identity changes; they are typically stable via useCallback,
+    // but we won't force re-render based solely on handler identity
+    true
+  );
+}
+
+export const SubtitleItem = memo(
+  SubtitleItemComponent,
+  areSubtitleItemPropsEqual
+);
 
 // Sub-components
 function IndexBadge({

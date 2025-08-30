@@ -14,16 +14,17 @@ import { KeyboardShortcutsHelp } from "./components/KeyboardShortcutsHelp";
 import type { SubtitleItem as SubtitleItemType } from "@/lib/stores/subtitle-store";
 
 export function SubtitleEditor() {
-  const {
-    subtitles,
-    selectedSubtitleId,
-    updateSubtitle,
-    deleteSubtitle,
-    selectSubtitle,
-    addSubtitle,
-  } = useSubtitleStore();
+  // Select only the fields/actions we need
+  const subtitles = useSubtitleStore((s) => s.subtitles);
+  const selectedSubtitleId = useSubtitleStore((s) => s.selectedSubtitleId);
+  const updateSubtitle = useSubtitleStore((s) => s.updateSubtitle);
+  const deleteSubtitle = useSubtitleStore((s) => s.deleteSubtitle);
+  const selectSubtitle = useSubtitleStore((s) => s.selectSubtitle);
+  const addSubtitle = useSubtitleStore((s) => s.addSubtitle);
 
-  const { setCurrentTime, video } = useVideoStore();
+  const setCurrentTime = useVideoStore((s) => s.setCurrentTime);
+  const currentTime = useVideoStore((s) => s.video.currentTime);
+  const isPlaying = useVideoStore((s) => s.video.isPlaying);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,33 +33,37 @@ export function SubtitleEditor() {
 
   // 현재 재생 중인 자막 계산
   const currentSubtitle = useMemo(() => {
-    return (
-      subtitles.find(
-        (sub) =>
-          video.currentTime >= sub.startTime && video.currentTime <= sub.endTime
-      ) || null
-    );
-  }, [subtitles, video.currentTime]);
+    const t = currentTime;
+    // Assumes subtitles is not mutated in-place; store returns new array on updates
+    for (let i = 0; i < subtitles.length; i++) {
+      const sub = subtitles[i];
+      if (t >= sub.startTime && t <= sub.endTime) return sub;
+    }
+    return null;
+  }, [subtitles, currentTime]);
 
   // 선택된 자막으로 스크롤
   useEffect(() => {
     if (selectedSubtitleId && subtitleRefs.current[selectedSubtitleId]) {
       const selectedElement = subtitleRefs.current[selectedSubtitleId];
-      selectedElement.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
+      // Avoid layout thrash by deferring to next frame and checking existence
+      requestAnimationFrame(() => {
+        selectedElement?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
       });
     }
   }, [selectedSubtitleId]);
 
   // 자동 스크롤 로직 - 가장 최적화된 버전
   const autoScrollRef = useRef(autoScroll);
-  const isPlayingRef = useRef(video.isPlaying);
+  const isPlayingRef = useRef(isPlaying);
   const selectedSubtitleIdRef = useRef(selectedSubtitleId);
 
   // refs 업데이트
   autoScrollRef.current = autoScroll;
-  isPlayingRef.current = video.isPlaying;
+  isPlayingRef.current = isPlaying;
   selectedSubtitleIdRef.current = selectedSubtitleId;
 
   useEffect(() => {
@@ -72,45 +77,53 @@ export function SubtitleEditor() {
     }
   }, [currentSubtitle?.id]); // 오직 현재 자막 ID 변경에만 의존
 
-  const formatTime = (seconds: number): string => {
+  const formatTime = useCallback((seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     const ms = Math.floor((seconds % 1) * 100);
     return `${mins}:${secs.toString().padStart(2, "0")}.${ms
       .toString()
       .padStart(2, "0")}`;
-  };
+  }, []);
 
-  const handleSubtitleSelect = (subtitle: SubtitleItemType) => {
-    selectSubtitle(subtitle.id);
-    setCurrentTime(subtitle.startTime);
-  };
+  const handleSubtitleSelect = useCallback(
+    (subtitle: SubtitleItemType) => {
+      selectSubtitle(subtitle.id);
+      setCurrentTime(subtitle.startTime);
+    },
+    [selectSubtitle, setCurrentTime]
+  );
 
-  const handleEdit = (subtitle: SubtitleItemType) => {
-    // 편집 시 자동으로 선택되도록 함
-    handleSubtitleSelect(subtitle);
-    setEditingId(subtitle.id);
-  };
+  const handleEdit = useCallback(
+    (subtitle: SubtitleItemType) => {
+      // 편집 시 자동으로 선택되도록 함
+      handleSubtitleSelect(subtitle);
+      setEditingId(subtitle.id);
+    },
+    [handleSubtitleSelect]
+  );
 
-  const handleSave = (id: string, newText: string) => {
-    updateSubtitle(id, { text: newText });
+  const handleSave = useCallback(
+    (id: string, newText: string) => {
+      updateSubtitle(id, { text: newText });
+      setEditingId(null);
+    },
+    [updateSubtitle]
+  );
+
+  const handleCancel = useCallback(() => {
     setEditingId(null);
-  };
+  }, []);
 
-  const handleCancel = () => {
-    setEditingId(null);
-  };
+  const handleTimeChange = useCallback(
+    (id: string, field: "startTime" | "endTime", value: string) => {
+      const timeValue = parseFloat(value) || 0;
+      updateSubtitle(id, { [field]: timeValue });
+    },
+    [updateSubtitle]
+  );
 
-  const handleTimeChange = (
-    id: string,
-    field: "startTime" | "endTime",
-    value: string
-  ) => {
-    const timeValue = parseFloat(value) || 0;
-    updateSubtitle(id, { [field]: timeValue });
-  };
-
-  const handleAddSubtitle = () => {
+  const handleAddSubtitle = useCallback(() => {
     const newSubtitle = {
       text: "",
       startTime: 0,
@@ -119,18 +132,27 @@ export function SubtitleEditor() {
     addSubtitle(newSubtitle);
     // Store에서 자동으로 생성된 ID로 편집 모드 설정
     setTimeout(() => {
-      const newestSubtitle = subtitles[subtitles.length - 1];
+      const newestSubtitle = useSubtitleStore.getState().subtitles.slice(-1)[0];
       if (newestSubtitle) {
         selectSubtitle(newestSubtitle.id);
         setEditingId(newestSubtitle.id);
       }
     }, 0);
-  };
+  }, [addSubtitle, selectSubtitle, subtitles]);
 
   // Filter subtitles based on search term
-  const filteredSubtitles = subtitles.filter((subtitle) =>
-    subtitle.text.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSubtitles: SubtitleItemType[] = useMemo(() => {
+    if (!searchTerm) return subtitles;
+    const q = searchTerm.toLowerCase();
+    return subtitles.filter((subtitle: SubtitleItemType) =>
+      subtitle.text.toLowerCase().includes(q)
+    );
+  }, [subtitles, searchTerm]);
+
+  const sortedFilteredSubtitles: SubtitleItemType[] = useMemo(() => {
+    // Copy before sort to avoid mutating store array
+    return [...filteredSubtitles].sort((a, b) => a.startTime - b.startTime);
+  }, [filteredSubtitles]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 h-full flex flex-col">
@@ -214,31 +236,29 @@ export function SubtitleEditor() {
           />
         ) : (
           <div className="space-y-3">
-            {filteredSubtitles
-              .sort((a, b) => a.startTime - b.startTime)
-              .map((subtitle, index) => (
-                <div
-                  key={subtitle.id}
-                  ref={(el) => {
-                    subtitleRefs.current[subtitle.id] = el;
-                  }}
-                >
-                  <SubtitleItem
-                    subtitle={subtitle}
-                    index={index + 1}
-                    isSelected={selectedSubtitleId === subtitle.id}
-                    isCurrent={currentSubtitle?.id === subtitle.id}
-                    isEditing={editingId === subtitle.id}
-                    onEdit={handleEdit}
-                    onSave={handleSave}
-                    onCancel={handleCancel}
-                    onDelete={() => deleteSubtitle(subtitle.id)}
-                    onSelect={() => handleSubtitleSelect(subtitle)}
-                    onTimeChange={handleTimeChange}
-                    formatTime={formatTime}
-                  />
-                </div>
-              ))}
+            {sortedFilteredSubtitles.map((subtitle, index) => (
+              <div
+                key={subtitle.id}
+                ref={(el) => {
+                  subtitleRefs.current[subtitle.id] = el;
+                }}
+              >
+                <SubtitleItem
+                  subtitle={subtitle}
+                  index={index + 1}
+                  isSelected={selectedSubtitleId === subtitle.id}
+                  isCurrent={currentSubtitle?.id === subtitle.id}
+                  isEditing={editingId === subtitle.id}
+                  onEdit={handleEdit}
+                  onSave={handleSave}
+                  onCancel={handleCancel}
+                  onDelete={() => deleteSubtitle(subtitle.id)}
+                  onSelect={() => handleSubtitleSelect(subtitle)}
+                  onTimeChange={handleTimeChange}
+                  formatTime={formatTime}
+                />
+              </div>
+            ))}
           </div>
         )}
       </div>
