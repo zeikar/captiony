@@ -24,7 +24,7 @@ interface SubtitleStore {
   timelineMode: TimelineMode; // timeline interaction mode
 
   // Actions
-  addSubtitle: (subtitle: Omit<SubtitleItem, "id">) => void;
+  addSubtitle: (subtitle: Omit<SubtitleItem, "id">) => string;
   updateSubtitle: (id: string, updates: Partial<SubtitleItem>) => void;
   deleteSubtitle: (id: string) => void;
   selectSubtitle: (id: string | null) => void;
@@ -80,16 +80,19 @@ export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
   timelineMode: "free" as TimelineMode,
 
   // Subtitle actions
-  addSubtitle: (subtitle) =>
+  addSubtitle: (subtitle) => {
+    const newId = Date.now().toString();
     set((state) => ({
       subtitles: [
         ...state.subtitles,
         {
           ...subtitle,
-          id: Date.now().toString(),
+          id: newId,
         },
       ],
-    })),
+    }));
+    return newId;
+  },
 
   updateSubtitle: (id, updates) =>
     set((state) => {
