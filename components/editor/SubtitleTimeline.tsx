@@ -119,7 +119,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
   ]);
 
   // 시간 눈금 생성 (훅으로 분리)
-  const timelineMarkers = useTimelineMarkers({
+  const { timeMarkers, visibleStartTime, visibleEndTime } = useTimelineMarkers({
     timelineWidth,
     timelineMode,
     video,
@@ -307,9 +307,14 @@ export const SubtitleTimeline: React.FC = memo(() => {
         >
           {/* 시간 눈금 */}
           <TimelineGrid
-            timeMarkers={timelineMarkers}
+            timeMarkers={timeMarkers}
             dynamicTimelineHeight={dynamicTimelineHeight}
             subtitleContainerTransform={subtitleContainerTransform}
+            pixelsPerSecond={pixelsPerSecond}
+            timelineScale={timelineScale}
+            visibleStartTime={visibleStartTime}
+            visibleEndTime={visibleEndTime}
+            videoDuration={video.duration || 0}
           />
 
           {/* 자막 바들 */}
