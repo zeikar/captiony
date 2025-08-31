@@ -127,10 +127,19 @@ function SubtitleItemComponent({
   };
 
   return (
-    <div className={getContainerStyle()} onClick={handleSelectClick}>
-      <IndexBadge index={index} onClick={handleSelectClick} />
+    <div
+      className={getContainerStyle()}
+      onClick={handleSelectClick}
+      style={{
+        height: "100%",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <Header
         subtitle={subtitle}
+        index={index}
         duration={duration}
         formatTime={formatTime}
         getDurationBadgeStyle={getDurationBadgeStyle}
@@ -144,15 +153,17 @@ function SubtitleItemComponent({
         onSelect={handleSelectClick}
         isEditing={isEditing}
       />
-      <SubtitleText
-        isEditing={isEditing}
-        subtitle={subtitle}
-        editText={editText}
-        setEditText={setEditText}
-        textareaRef={textareaRef}
-        handleKeyDown={handleKeyDown}
-        onSelect={handleSelectClick}
-      />
+      <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <SubtitleText
+          isEditing={isEditing}
+          subtitle={subtitle}
+          editText={editText}
+          setEditText={setEditText}
+          textareaRef={textareaRef}
+          handleKeyDown={handleKeyDown}
+          onSelect={handleSelectClick}
+        />
+      </div>
       <ActionButtons
         isEditing={isEditing}
         onSave={handleSaveClick}
@@ -189,25 +200,10 @@ export const SubtitleItem = memo(
 );
 
 // Sub-components
-function IndexBadge({
-  index,
-  onClick,
-}: {
-  index: number;
-  onClick: () => void;
-}) {
-  return (
-    <div
-      className="absolute -top-2 -left-2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg z-10 cursor-pointer"
-      onClick={onClick}
-    >
-      {index}
-    </div>
-  );
-}
 
 function Header({
   subtitle,
+  index,
   duration,
   formatTime,
   getDurationBadgeStyle,
@@ -216,6 +212,7 @@ function Header({
   onClick,
 }: {
   subtitle: SubtitleItemType;
+  index: number;
   duration: number;
   formatTime: (seconds: number) => string;
   getDurationBadgeStyle: () => string;
@@ -229,6 +226,11 @@ function Header({
       onClick={onClick}
     >
       <div className="flex items-center gap-2">
+        {/* Index Number */}
+        <div className="w-6 h-6 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded text-xs font-medium flex items-center justify-center">
+          {index}
+        </div>
+
         <div className="flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-400">
           <ClockIcon className="h-4 w-4" />
           <span>{formatTime(subtitle.startTime)}</span>
@@ -347,20 +349,20 @@ function SubtitleText({
 }) {
   if (isEditing) {
     return (
-      <div className="mb-3">
-        <div className="relative">
+      <div className="mb-2 flex-1 flex flex-col" style={{ minHeight: 0 }}>
+        <div className="relative flex-1" style={{ minHeight: 0 }}>
           <textarea
             ref={textareaRef}
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-colors"
-            rows={3}
+            className="w-full h-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-colors text-sm"
             placeholder="Enter subtitle text..."
             onClick={(e) => e.stopPropagation()}
+            style={{ minHeight: "90px" }} // 120px → 90px로 감소
           />
-          <div className="text-xs text-gray-400 mt-1">
-            Press Cmd+Enter to save, Esc to cancel
+          <div className="text-xs text-gray-400 mt-1 absolute bottom-1 right-2 bg-white dark:bg-gray-700 px-1 rounded opacity-75">
+            Cmd+Enter: save, Esc: cancel
           </div>
         </div>
       </div>
@@ -368,10 +370,15 @@ function SubtitleText({
   }
 
   return (
-    <div className="mb-3">
+    <div className="mb-2 flex-1" style={{ minHeight: 0, overflow: "hidden" }}>
       <p
         className="text-gray-900 dark:text-white leading-relaxed min-h-[1.5rem] cursor-pointer"
         onClick={onSelect}
+        style={{
+          wordWrap: "break-word",
+          whiteSpace: "pre-wrap",
+          overflow: "visible",
+        }}
       >
         {subtitle.text || <span className="text-gray-400 italic">No text</span>}
       </p>
@@ -402,23 +409,23 @@ function ActionButtons({
 
   return (
     <div
-      className="flex items-center justify-end gap-1 min-h-[2rem]"
+      className="flex items-center justify-end gap-1 min-h-[2rem] flex-shrink-0"
       onClick={handleContainerClick}
     >
       {isEditing ? (
         <>
           <button
             onClick={onSave}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors shadow-md hover:shadow-lg"
+            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
           >
-            <CheckIcon className="h-4 w-4" />
+            <CheckIcon className="h-3 w-3" />
             Save
           </button>
           <button
             onClick={onCancel}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
-            <XMarkIcon className="h-4 w-4" />
+            <XMarkIcon className="h-3 w-3" />
             Cancel
           </button>
         </>
@@ -426,16 +433,16 @@ function ActionButtons({
         <>
           <button
             onClick={onEdit}
-            className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+            className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-all"
           >
-            <PencilIcon className="h-4 w-4" />
+            <PencilIcon className="h-3 w-3" />
             Edit
           </button>
           <button
             onClick={onDelete}
-            className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+            className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
           >
-            <TrashIcon className="h-4 w-4" />
+            <TrashIcon className="h-3 w-3" />
             Delete
           </button>
         </>

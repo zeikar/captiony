@@ -15,10 +15,36 @@ import type { SubtitleItem as SubtitleItemType } from "@/lib/stores/subtitle-sto
 
 // 가상 스크롤 상수
 const VIRTUAL_SCROLL_CONFIG = {
-  ITEM_HEIGHT: 180,
+  BASE_ITEM_HEIGHT: 180, // 기본 높이
+  EDITING_ITEM_HEIGHT: 240, // 편집 모드 높이 (280 → 240으로 감소)
+  LONG_TEXT_ADDITIONAL_HEIGHT: 40, // 긴 텍스트 추가 높이 (60 → 40으로 감소)
+  MARGIN_BOTTOM: 12,
   VISIBLE_ITEMS: 10,
   BUFFER_SIZE: 5,
 } as const;
+
+// 높이 계산 함수
+const calculateItemHeight = (
+  subtitle: SubtitleItemType,
+  isEditing: boolean
+): number => {
+  const {
+    BASE_ITEM_HEIGHT,
+    EDITING_ITEM_HEIGHT,
+    LONG_TEXT_ADDITIONAL_HEIGHT,
+    MARGIN_BOTTOM,
+  } = VIRTUAL_SCROLL_CONFIG;
+
+  let height = isEditing ? EDITING_ITEM_HEIGHT : BASE_ITEM_HEIGHT;
+
+  // 텍스트 길이에 따른 추가 높이 계산
+  if (subtitle.text && subtitle.text.length > 100) {
+    const additionalLines = Math.floor((subtitle.text.length - 100) / 50);
+    height += Math.min(additionalLines * 20, LONG_TEXT_ADDITIONAL_HEIGHT);
+  }
+
+  return height + MARGIN_BOTTOM;
+};
 
 // 유틸리티 함수들
 const formatTime = (seconds: number): string => {
@@ -123,21 +149,58 @@ export function SubtitleEditor() {
     return { filteredSubtitles: filtered, sortedFilteredSubtitles: sorted };
   }, [subtitles, searchTerm]);
 
-  // 가상 스크롤 계산
+  // 동적 높이 계산
+  const itemHeights = useMemo(() => {
+    return sortedFilteredSubtitles.map((subtitle) =>
+      calculateItemHeight(subtitle, editingSubtitleId === subtitle.id)
+    );
+  }, [sortedFilteredSubtitles, editingSubtitleId]);
+
+  const cumulativeHeights = useMemo(() => {
+    const cumulative = [0];
+    itemHeights.forEach((height, index) => {
+      cumulative[index + 1] = cumulative[index] + height;
+    });
+    return cumulative;
+  }, [itemHeights]);
+
+  const totalHeight = cumulativeHeights[cumulativeHeights.length - 1];
+
+  // 가상 스크롤 계산 (동적 높이 지원)
   const visibleRange = useMemo(() => {
-    const { ITEM_HEIGHT, VISIBLE_ITEMS, BUFFER_SIZE } = VIRTUAL_SCROLL_CONFIG;
-    const containerHeight = VISIBLE_ITEMS * ITEM_HEIGHT;
-    const startIndex = Math.max(
-      0,
-      Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE
-    );
-    const endIndex = Math.min(
-      sortedFilteredSubtitles.length - 1,
-      Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER_SIZE
-    );
+    const { VISIBLE_ITEMS, BUFFER_SIZE } = VIRTUAL_SCROLL_CONFIG;
+
+    if (cumulativeHeights.length <= 1) {
+      return { startIndex: 0, endIndex: 0 };
+    }
+
+    // 시작 인덱스 찾기 (binary search)
+    let startIndex = 0;
+    for (let i = 0; i < cumulativeHeights.length - 1; i++) {
+      if (cumulativeHeights[i + 1] > scrollTop) {
+        startIndex = Math.max(0, i - BUFFER_SIZE);
+        break;
+      }
+    }
+
+    // 끝 인덱스 찾기
+    const containerHeight =
+      VISIBLE_ITEMS * VIRTUAL_SCROLL_CONFIG.BASE_ITEM_HEIGHT;
+    const targetBottom = scrollTop + containerHeight;
+    let endIndex = sortedFilteredSubtitles.length - 1;
+
+    for (let i = startIndex; i < cumulativeHeights.length - 1; i++) {
+      if (cumulativeHeights[i] > targetBottom) {
+        endIndex = Math.min(
+          sortedFilteredSubtitles.length - 1,
+          i + BUFFER_SIZE
+        );
+        break;
+      }
+    }
 
     return { startIndex, endIndex };
-  }, [scrollTop, sortedFilteredSubtitles.length]);
+  }, [scrollTop, cumulativeHeights, sortedFilteredSubtitles.length]);
 
   const visibleSubtitles = useMemo(() => {
     const { startIndex, endIndex } = visibleRange;
@@ -149,8 +212,6 @@ export function SubtitleEditor() {
       }));
   }, [sortedFilteredSubtitles, visibleRange]);
 
-  const totalHeight =
-    sortedFilteredSubtitles.length * VIRTUAL_SCROLL_CONFIG.ITEM_HEIGHT;
   const { startIndex } = visibleRange;
 
   // 이벤트 핸들러들
@@ -222,43 +283,42 @@ export function SubtitleEditor() {
     (subtitleId: string) => {
       if (!scrollContainerRef.current) return;
 
-      // 가상 스크롤 환경에서는 인덱스를 찾아서 직접 스크롤 위치 계산
       const subtitleIndex = sortedFilteredSubtitles.findIndex(
         (sub) => sub.id === subtitleId
       );
 
       if (subtitleIndex === -1) return;
 
-      const { ITEM_HEIGHT } = VIRTUAL_SCROLL_CONFIG;
       const container = scrollContainerRef.current;
-      const currentScrollTop = container.scrollTop;
       const containerHeight = container.clientHeight;
 
-      // 현재 보이는 범위 계산
-      const visibleStartIndex = Math.floor(currentScrollTop / ITEM_HEIGHT);
-      const visibleEndIndex = Math.ceil(
-        (currentScrollTop + containerHeight) / ITEM_HEIGHT
-      );
+      // 해당 자막의 위치 계산
+      const itemTop = cumulativeHeights[subtitleIndex];
+      const itemBottom = cumulativeHeights[subtitleIndex + 1];
+      const itemHeight = itemBottom - itemTop;
 
-      // 선택된 자막이 이미 보이는 범위에 있는지 확인
+      const currentScrollTop = container.scrollTop;
+      const visibleTop = currentScrollTop;
+      const visibleBottom = currentScrollTop + containerHeight;
+
+      // 버퍼 영역을 고려한 가시성 판단
+      const buffer = 50;
       if (
-        subtitleIndex >= visibleStartIndex &&
-        subtitleIndex <= visibleEndIndex
+        itemTop >= visibleTop + buffer &&
+        itemBottom <= visibleBottom - buffer
       ) {
-        return; // 이미 보이므로 스크롤하지 않음
+        return; // 이미 충분히 보이므로 스크롤하지 않음
       }
 
-      const targetScrollTop = subtitleIndex * ITEM_HEIGHT;
-      // 선택된 항목이 화면 중앙에 오도록 스크롤 위치 조정
-      const centeredScrollTop =
-        targetScrollTop - containerHeight / 2 + ITEM_HEIGHT / 2;
+      // 중앙에 위치하도록 스크롤
+      const centeredScrollTop = itemTop - containerHeight / 2 + itemHeight / 2;
 
       container.scrollTo({
         top: Math.max(0, centeredScrollTop),
         behavior: "smooth",
       });
     },
-    [sortedFilteredSubtitles]
+    [sortedFilteredSubtitles, cumulativeHeights]
   );
 
   // Effects
@@ -267,11 +327,23 @@ export function SubtitleEditor() {
       // 약간의 지연을 두어 가상 스크롤 렌더링이 완료된 후 스크롤
       const timeoutId = setTimeout(() => {
         autoScrollToSubtitle(selectedSubtitleId);
-      }, 50);
+      }, 100); // 50ms에서 100ms로 증가
 
       return () => clearTimeout(timeoutId);
     }
   }, [selectedSubtitleId, autoScrollToSubtitle]);
+
+  // Auto-scroll이 꺼져있을 때도 키보드 네비게이션 시에는 스크롤 되도록 개선
+  useEffect(() => {
+    // 키보드 네비게이션으로 자막이 선택되었을 때 강제로 스크롤
+    if (selectedSubtitleId && !isPlaying) {
+      const timeoutId = setTimeout(() => {
+        autoScrollToSubtitle(selectedSubtitleId);
+      }, 50);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [selectedSubtitleId, isPlaying, autoScrollToSubtitle]);
 
   useEffect(() => {
     if (!autoScroll || !isPlaying || !currentSubtitleId) {
@@ -392,9 +464,7 @@ export function SubtitleEditor() {
           <div style={{ height: `${totalHeight}px`, position: "relative" }}>
             <div
               style={{
-                transform: `translateY(${
-                  startIndex * VIRTUAL_SCROLL_CONFIG.ITEM_HEIGHT
-                }px)`,
+                transform: `translateY(${cumulativeHeights[startIndex]}px)`,
                 position: "absolute",
                 top: 0,
                 left: 0,
@@ -402,43 +472,59 @@ export function SubtitleEditor() {
               }}
             >
               {visibleSubtitles.map(
-                ({
-                  subtitle,
-                  actualIndex,
-                }: {
-                  subtitle: SubtitleItemType;
-                  actualIndex: number;
-                }) => (
-                  <div
-                    key={subtitle.id}
-                    style={{
-                      height: `${VIRTUAL_SCROLL_CONFIG.ITEM_HEIGHT}px`,
-                      marginBottom: "12px",
-                    }}
-                    ref={(el) => {
-                      if (el) {
-                        subtitleRefs.current.set(subtitle.id, el);
-                      } else {
-                        subtitleRefs.current.delete(subtitle.id);
-                      }
-                    }}
-                  >
-                    <SubtitleItem
-                      subtitle={subtitle}
-                      index={actualIndex}
-                      isSelected={selectedSubtitleId === subtitle.id}
-                      isCurrent={currentSubtitleId === subtitle.id}
-                      isEditing={editingSubtitleId === subtitle.id}
-                      onEdit={handleEdit}
-                      onSave={handleSave}
-                      onCancel={handleCancel}
-                      onDelete={() => deleteSubtitle(subtitle.id)}
-                      onSelect={() => handleSubtitleSelect(subtitle)}
-                      onTimeChange={handleTimeChange}
-                      formatTime={formatTime}
-                    />
-                  </div>
-                )
+                (
+                  {
+                    subtitle,
+                    actualIndex,
+                  }: {
+                    subtitle: SubtitleItemType;
+                    actualIndex: number;
+                  },
+                  index
+                ) => {
+                  const currentIndex = startIndex + index;
+                  const itemHeight = itemHeights[currentIndex];
+                  return (
+                    <div
+                      key={subtitle.id}
+                      style={{
+                        height: `${itemHeight}px`,
+                        paddingBottom: `${VIRTUAL_SCROLL_CONFIG.MARGIN_BOTTOM}px`,
+                        boxSizing: "border-box",
+                      }}
+                      ref={(el) => {
+                        if (el) {
+                          subtitleRefs.current.set(subtitle.id, el);
+                        } else {
+                          subtitleRefs.current.delete(subtitle.id);
+                        }
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: `${
+                            itemHeight - VIRTUAL_SCROLL_CONFIG.MARGIN_BOTTOM
+                          }px`,
+                        }}
+                      >
+                        <SubtitleItem
+                          subtitle={subtitle}
+                          index={actualIndex}
+                          isSelected={selectedSubtitleId === subtitle.id}
+                          isCurrent={currentSubtitleId === subtitle.id}
+                          isEditing={editingSubtitleId === subtitle.id}
+                          onEdit={handleEdit}
+                          onSave={handleSave}
+                          onCancel={handleCancel}
+                          onDelete={() => deleteSubtitle(subtitle.id)}
+                          onSelect={() => handleSubtitleSelect(subtitle)}
+                          onTimeChange={handleTimeChange}
+                          formatTime={formatTime}
+                        />
+                      </div>
+                    </div>
+                  );
+                }
               )}
             </div>
           </div>
