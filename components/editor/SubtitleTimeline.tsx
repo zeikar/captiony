@@ -139,7 +139,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
   });
 
   // 타임라인 클릭/더블클릭 핸들러 (훅으로 분리)
-  const { handleTimelineClick, handleDoubleClick } = useTimelineClicks({
+  const { handleTimelineClick } = useTimelineClicks({
     timelineRef: timelineRef as React.RefObject<HTMLDivElement>,
     timelineMode,
     centerX,
@@ -148,8 +148,6 @@ export const SubtitleTimeline: React.FC = memo(() => {
     timelineOffset,
     isDragging,
     setCurrentTime,
-    addSubtitle,
-    selectSubtitle,
   });
 
   // 모드 변경 핸들러 (free 모드로 바뀔 때 현재 재생 시간으로 이동)
@@ -303,7 +301,6 @@ export const SubtitleTimeline: React.FC = memo(() => {
           ref={timelineRef}
           className="relative bg-gray-50 dark:bg-gray-800 cursor-pointer select-none h-full"
           onClick={handleTimelineClick}
-          onDoubleClick={handleDoubleClick}
         >
           {/* 시간 눈금 */}
           <TimelineGrid

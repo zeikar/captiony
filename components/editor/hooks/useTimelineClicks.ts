@@ -9,12 +9,6 @@ interface UseTimelineClicksProps {
   timelineOffset: number;
   isDragging: boolean;
   setCurrentTime: (time: number) => void;
-  addSubtitle: (subtitle: {
-    startTime: number;
-    endTime: number;
-    text: string;
-  }) => void;
-  selectSubtitle: (id: string) => void;
 }
 
 export const useTimelineClicks = ({
@@ -26,8 +20,6 @@ export const useTimelineClicks = ({
   timelineOffset,
   isDragging,
   setCurrentTime,
-  addSubtitle,
-  selectSubtitle,
 }: UseTimelineClicksProps) => {
   // 더블클릭으로 새 자막 추가 - 시간 계산 함수 분리로 성능 최적화
   const calculateTimeFromClick = useCallback(
@@ -60,23 +52,7 @@ export const useTimelineClicks = ({
     [isDragging, calculateTimeFromClick, setCurrentTime]
   );
 
-  const handleDoubleClick = useCallback(
-    (e: React.MouseEvent) => {
-      const time = calculateTimeFromClick(e.clientX);
-      const newSubtitle = {
-        startTime: time,
-        endTime: time + 2,
-        text: "새 자막",
-      };
-
-      addSubtitle(newSubtitle);
-      selectSubtitle(Date.now().toString()); // 임시 ID, 실제로는 addSubtitle에서 반환된 ID를 사용해야 함
-    },
-    [calculateTimeFromClick, addSubtitle, selectSubtitle]
-  );
-
   return {
     handleTimelineClick,
-    handleDoubleClick,
   };
 };
