@@ -17,6 +17,7 @@ interface SubtitleStore {
   // Subtitle state
   subtitles: SubtitleItem[];
   selectedSubtitleId: string | null;
+  editingSubtitleId: string | null;
 
   // Timeline state
   timelineScale: number; // zoom level
@@ -28,6 +29,7 @@ interface SubtitleStore {
   updateSubtitle: (id: string, updates: Partial<SubtitleItem>) => void;
   deleteSubtitle: (id: string) => void;
   selectSubtitle: (id: string | null) => void;
+  setEditingSubtitle: (id: string | null) => void;
 
   setTimelineScale: (scale: number) => void;
   setTimelineOffset: (offset: number) => void;
@@ -74,6 +76,7 @@ export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
     },
   ],
   selectedSubtitleId: null,
+  editingSubtitleId: null,
 
   timelineScale: 1,
   timelineOffset: 0,
@@ -121,6 +124,8 @@ export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
     })),
 
   selectSubtitle: (selectedSubtitleId) => set({ selectedSubtitleId }),
+
+  setEditingSubtitle: (editingSubtitleId) => set({ editingSubtitleId }),
 
   // Timeline actions
   setTimelineScale: (timelineScale) => set({ timelineScale }),

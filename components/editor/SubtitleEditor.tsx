@@ -64,17 +64,18 @@ export function SubtitleEditor() {
   // Store 훅들
   const subtitles = useSubtitleStore((s) => s.subtitles);
   const selectedSubtitleId = useSubtitleStore((s) => s.selectedSubtitleId);
+  const editingSubtitleId = useSubtitleStore((s) => s.editingSubtitleId);
   const updateSubtitle = useSubtitleStore((s) => s.updateSubtitle);
   const deleteSubtitle = useSubtitleStore((s) => s.deleteSubtitle);
   const selectSubtitle = useSubtitleStore((s) => s.selectSubtitle);
   const addSubtitle = useSubtitleStore((s) => s.addSubtitle);
+  const setEditingSubtitle = useSubtitleStore((s) => s.setEditingSubtitle);
 
   const currentTime = useVideoStore((s) => s.video.currentTime);
   const isPlaying = useVideoStore((s) => s.video.isPlaying);
   const setCurrentTime = useVideoStore((s) => s.setCurrentTime);
 
   // 상태들
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
   const [scrollTop, setScrollTop] = useState(0);
@@ -168,22 +169,22 @@ export function SubtitleEditor() {
   const handleEdit = useCallback(
     (subtitle: SubtitleItemType) => {
       handleSubtitleSelect(subtitle);
-      setEditingId(subtitle.id);
+      setEditingSubtitle(subtitle.id);
     },
-    [handleSubtitleSelect]
+    [handleSubtitleSelect, setEditingSubtitle]
   );
 
   const handleSave = useCallback(
     (id: string, newText: string) => {
       updateSubtitle(id, { text: newText });
-      setEditingId(null);
+      setEditingSubtitle(null);
     },
-    [updateSubtitle]
+    [updateSubtitle, setEditingSubtitle]
   );
 
   const handleCancel = useCallback(() => {
-    setEditingId(null);
-  }, []);
+    setEditingSubtitle(null);
+  }, [setEditingSubtitle]);
 
   const handleTimeChange = useCallback(
     (id: string, field: "startTime" | "endTime", value: string) => {
@@ -203,9 +204,9 @@ export function SubtitleEditor() {
 
     if (newSubtitleId) {
       selectSubtitle(newSubtitleId);
-      setEditingId(newSubtitleId);
+      setEditingSubtitle(newSubtitleId);
     }
-  }, [addSubtitle, selectSubtitle]);
+  }, [addSubtitle, selectSubtitle, setEditingSubtitle]);
 
   const handleAutoScrollToggle = useCallback(() => {
     setAutoScroll((prev) => {
@@ -427,7 +428,7 @@ export function SubtitleEditor() {
                       index={actualIndex}
                       isSelected={selectedSubtitleId === subtitle.id}
                       isCurrent={currentSubtitleId === subtitle.id}
-                      isEditing={editingId === subtitle.id}
+                      isEditing={editingSubtitleId === subtitle.id}
                       onEdit={handleEdit}
                       onSave={handleSave}
                       onCancel={handleCancel}

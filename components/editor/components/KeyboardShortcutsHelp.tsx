@@ -75,6 +75,11 @@ const shortcuts: Shortcut[] = [
 
   // Subtitle Editing
   {
+    key: "Enter",
+    description: "Edit selected subtitle",
+    category: "Subtitle Editing",
+  },
+  {
     key: "Delete / Backspace",
     description: "Delete selected subtitle",
     category: "Subtitle Editing",

@@ -12,6 +12,7 @@ export function useKeyboardShortcuts() {
     updateSubtitle,
     deleteSubtitle,
     addSubtitle,
+    setEditingSubtitle,
   } = useSubtitleStore();
 
   const { video, setCurrentTime, togglePlayPause, seekTo } = useVideoStore();
@@ -140,7 +141,16 @@ export function useKeyboardShortcuts() {
               startTime: currentTime,
               endTime: currentTime + 2,
             };
-            addSubtitle(newSubtitle);
+            const newSubtitleId = addSubtitle(newSubtitle);
+            if (newSubtitleId) {
+              selectSubtitle(newSubtitleId);
+              // 새로 생성된 자막을 자동으로 편집 모드로 설정
+              setTimeout(() => setEditingSubtitle(newSubtitleId), 0);
+            }
+            e.preventDefault();
+          } else if (selectedSubtitleId && !e.shiftKey && !e.altKey) {
+            // Enter: 선택된 자막을 편집 모드로 설정
+            setEditingSubtitle(selectedSubtitleId);
             e.preventDefault();
           }
           break;
@@ -157,6 +167,8 @@ export function useKeyboardShortcuts() {
             const newSubtitleId = addSubtitle(newSubtitle);
             if (newSubtitleId) {
               selectSubtitle(newSubtitleId);
+              // 새로 생성된 자막을 자동으로 편집 모드로 설정
+              setTimeout(() => setEditingSubtitle(newSubtitleId), 0);
             }
             e.preventDefault();
           }
@@ -316,6 +328,7 @@ export function useKeyboardShortcuts() {
     updateSubtitle,
     deleteSubtitle,
     addSubtitle,
+    setEditingSubtitle,
     video,
     setCurrentTime,
     togglePlayPause,
