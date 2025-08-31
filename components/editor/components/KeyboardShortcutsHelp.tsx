@@ -14,6 +14,11 @@ const shortcuts: Shortcut[] = [
   // Playback Control
   { key: "Space", description: "Play/Pause", category: "Playback Control" },
   {
+    key: "K",
+    description: "Play/Pause (alternative)",
+    category: "Playback Control",
+  },
+  {
     key: "←",
     description: "Jump back 5 seconds",
     category: "Playback Control",
@@ -22,6 +27,28 @@ const shortcuts: Shortcut[] = [
     key: "→",
     description: "Jump forward 5 seconds",
     category: "Playback Control",
+  },
+  {
+    key: "J",
+    description: "Jump back 1 second",
+    category: "Playback Control",
+  },
+  {
+    key: "L",
+    description: "Jump forward 1 second",
+    category: "Playback Control",
+  },
+
+  // Subtitle Creation
+  {
+    key: "N",
+    description: "Add new subtitle at current time",
+    category: "Subtitle Creation",
+  },
+  {
+    key: "Cmd/Ctrl + Enter",
+    description: "Add new subtitle (alternative)",
+    category: "Subtitle Creation",
   },
 
   // Subtitle Navigation
@@ -33,6 +60,11 @@ const shortcuts: Shortcut[] = [
   {
     key: "↓",
     description: "Select next subtitle",
+    category: "Subtitle Navigation",
+  },
+  {
+    key: "M",
+    description: "Jump to nearest subtitle",
     category: "Subtitle Navigation",
   },
   {
@@ -48,8 +80,18 @@ const shortcuts: Shortcut[] = [
     category: "Subtitle Editing",
   },
   {
-    key: "Cmd/Ctrl + Enter",
-    description: "Add new subtitle",
+    key: "I",
+    description: "Set In point (start time) to current time",
+    category: "Subtitle Editing",
+  },
+  {
+    key: "O",
+    description: "Set Out point (end time) to current time",
+    category: "Subtitle Editing",
+  },
+  {
+    key: "S",
+    description: "Split subtitle at current time",
     category: "Subtitle Editing",
   },
 

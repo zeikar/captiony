@@ -144,6 +144,166 @@ export function useKeyboardShortcuts() {
             e.preventDefault();
           }
           break;
+        case "n":
+        case "N":
+          // N 키: 현재 재생 위치에 새 자막 추가
+          if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+            const currentTime = video.currentTime;
+            const newSubtitle = {
+              text: "",
+              startTime: currentTime,
+              endTime: currentTime + 2,
+            };
+            const newSubtitleId = addSubtitle(newSubtitle);
+            if (newSubtitleId) {
+              selectSubtitle(newSubtitleId);
+            }
+            e.preventDefault();
+          }
+          break;
+        case "i":
+        case "I":
+          // I 키: In point - 선택된 자막의 시작 시간을 현재 재생 위치로 설정
+          if (
+            !e.metaKey &&
+            !e.ctrlKey &&
+            !e.shiftKey &&
+            !e.altKey &&
+            selectedSubtitleId
+          ) {
+            const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
+            if (subtitle) {
+              const currentTime = video.currentTime;
+              // 끝 시간보다 늦지 않도록 제한
+              const newStartTime = Math.min(
+                currentTime,
+                subtitle.endTime - 0.1
+              );
+              updateSubtitle(selectedSubtitleId, {
+                startTime: Math.max(0, newStartTime),
+              });
+            }
+            e.preventDefault();
+          }
+          break;
+        case "o":
+        case "O":
+          // O 키: Out point - 선택된 자막의 끝 시간을 현재 재생 위치로 설정
+          if (
+            !e.metaKey &&
+            !e.ctrlKey &&
+            !e.shiftKey &&
+            !e.altKey &&
+            selectedSubtitleId
+          ) {
+            const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
+            if (subtitle) {
+              const currentTime = video.currentTime;
+              // 시작 시간보다 빠르지 않도록 제한
+              const newEndTime = Math.max(
+                currentTime,
+                subtitle.startTime + 0.1
+              );
+              updateSubtitle(selectedSubtitleId, {
+                endTime: newEndTime,
+              });
+            }
+            e.preventDefault();
+          }
+          break;
+        case "s":
+        case "S":
+          // S 키: 자막 분할 - 현재 재생 위치에서 선택된 자막을 두 개로 분할
+          if (
+            !e.metaKey &&
+            !e.ctrlKey &&
+            !e.shiftKey &&
+            !e.altKey &&
+            selectedSubtitleId
+          ) {
+            const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
+            if (subtitle) {
+              const currentTime = video.currentTime;
+              // 현재 시간이 자막 범위 내에 있을 때만 분할
+              if (
+                currentTime > subtitle.startTime &&
+                currentTime < subtitle.endTime
+              ) {
+                // 기존 자막의 끝 시간을 현재 시간으로 변경
+                updateSubtitle(selectedSubtitleId, {
+                  endTime: currentTime,
+                });
+
+                // 새로운 자막 추가
+                const newSubtitle = {
+                  text: subtitle.text,
+                  startTime: currentTime,
+                  endTime: subtitle.endTime,
+                };
+                const newSubtitleId = addSubtitle(newSubtitle);
+                if (newSubtitleId) {
+                  selectSubtitle(newSubtitleId);
+                }
+              }
+            }
+            e.preventDefault();
+          }
+          break;
+        case "m":
+        case "M":
+          // M 키: 현재 재생 위치에서 가장 가까운 자막으로 이동 및 선택
+          if (
+            !e.metaKey &&
+            !e.ctrlKey &&
+            !e.shiftKey &&
+            !e.altKey &&
+            subtitles.length > 0
+          ) {
+            const currentTime = video.currentTime;
+            let closestSubtitle = subtitles[0];
+            let minDistance = Math.abs(closestSubtitle.startTime - currentTime);
+
+            // 가장 가까운 자막 찾기 (시작 시간 기준)
+            subtitles.forEach((subtitle) => {
+              const distance = Math.abs(subtitle.startTime - currentTime);
+              if (distance < minDistance) {
+                minDistance = distance;
+                closestSubtitle = subtitle;
+              }
+            });
+
+            selectSubtitle(closestSubtitle.id);
+            setCurrentTime(closestSubtitle.startTime);
+            e.preventDefault();
+          }
+          break;
+        case "j":
+        case "J":
+          // J 키: 1초 뒤로 (더 정밀한 탐색)
+          if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+            const newTime = Math.max(0, video.currentTime - 1);
+            seekTo(newTime);
+            e.preventDefault();
+          }
+          break;
+        case "k":
+        case "K":
+          // K 키: 재생/일시정지 (스페이스바 대안)
+          if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+            togglePlayPause();
+            e.preventDefault();
+          }
+          break;
+        case "l":
+        case "L":
+          // L 키: 1초 앞으로 (더 정밀한 탐색)
+          if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+            const maxTime = video.duration || video.currentTime + 1;
+            const newTime = Math.min(maxTime, video.currentTime + 1);
+            seekTo(newTime);
+            e.preventDefault();
+          }
+          break;
       }
     };
 
