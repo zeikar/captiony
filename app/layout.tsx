@@ -4,6 +4,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { NotificationProvider } from "@/contexts/notification-context";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { getMetadata } from "@/lib/metadata";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,11 +16,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Captiony - Web Subtitle Editor",
-  description:
-    "Web-based subtitle editor - Add and edit subtitles for your videos with ease",
-};
+export const metadata: Metadata = getMetadata();
 
 export default function RootLayout({
   children,

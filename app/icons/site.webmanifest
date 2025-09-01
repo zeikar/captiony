@@ -1,0 +1,24 @@
+{
+  "name": "Captiony - Web Subtitle Editor",
+  "short_name": "Captiony",
+  "description": "Web-based subtitle editor - Add and edit subtitles for your videos with ease",
+  "icons": [
+    {
+      "src": "/icons/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "orientation": "portrait-primary",
+  "categories": ["video", "editing", "productivity", "tools"]
+}
