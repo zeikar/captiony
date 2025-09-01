@@ -58,9 +58,6 @@ export function getMetadata(): Metadata {
         "max-snippet": -1,
       },
     },
-    verification: {
-      google: "your-google-verification-code",
-    },
     icons: {
       icon: [
         { url: "/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
