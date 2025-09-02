@@ -14,7 +14,7 @@ export function ToolBar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const srtInputRef = useRef<HTMLInputElement>(null);
 
-  const { exportSRT, importSRT } = useSubtitleStore();
+  const { exportSRT, exportVTT, importSubtitles } = useSubtitleStore();
   const { setVideoUrl } = useVideoStore();
 
   const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,13 +25,13 @@ export function ToolBar() {
     }
   };
 
-  const handleSRTUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSubtitleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
-        importSRT(content);
+        importSubtitles(content, file.name);
       };
       reader.readAsText(file);
     }
@@ -41,6 +41,12 @@ export function ToolBar() {
     const srtContent = exportSRT();
     const blob = new Blob([srtContent], { type: "text/plain;charset=utf-8" });
     saveAs(blob, "subtitles.srt");
+  };
+
+  const handleExportVTT = () => {
+    const vttContent = exportVTT();
+    const blob = new Blob([vttContent], { type: "text/vtt;charset=utf-8" });
+    saveAs(blob, "subtitles.vtt");
   };
 
   return (
@@ -73,7 +79,7 @@ export function ToolBar() {
         ref={srtInputRef}
         type="file"
         accept=".srt,.vtt"
-        onChange={handleSRTUpload}
+        onChange={handleSubtitleUpload}
         className="hidden"
       />
 
@@ -84,6 +90,15 @@ export function ToolBar() {
       >
         <DocumentArrowDownIcon className="h-4 w-4" />
         Export SRT
+      </button>
+
+      {/* Export VTT */}
+      <button
+        onClick={handleExportVTT}
+        className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm"
+      >
+        <DocumentArrowDownIcon className="h-4 w-4" />
+        Export VTT
       </button>
     </div>
   );

@@ -38,7 +38,8 @@ interface SubtitleStore {
   // Utility functions
   getCurrentSubtitle: () => SubtitleItem | null;
   exportSRT: () => string;
-  importSRT: (srtContent: string) => void;
+  exportVTT: () => string;
+  importSubtitles: (content: string, filename?: string) => void;
 }
 
 export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
@@ -149,21 +150,47 @@ export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
     return subtitles
       .sort((a, b) => a.startTime - b.startTime)
       .map((sub, index) => {
-        const startTime = formatTime(sub.startTime);
-        const endTime = formatTime(sub.endTime);
+        const startTime = formatSRTTime(sub.startTime);
+        const endTime = formatSRTTime(sub.endTime);
         return `${index + 1}\n${startTime} --> ${endTime}\n${sub.text}\n`;
       })
       .join("\n");
   },
 
-  importSRT: (srtContent) => {
-    const subtitles = parseSRT(srtContent);
+  exportVTT: () => {
+    const { subtitles } = get();
+    const vttContent = subtitles
+      .sort((a, b) => a.startTime - b.startTime)
+      .map((sub) => {
+        const startTime = formatVTTTime(sub.startTime);
+        const endTime = formatVTTTime(sub.endTime);
+        return `${startTime} --> ${endTime}\n${sub.text}`;
+      })
+      .join("\n\n");
+
+    return `WEBVTT\n\n${vttContent}`;
+  },
+
+  importSubtitles: (content, filename) => {
+    let subtitles: SubtitleItem[] = [];
+
+    // Detect format by filename or content
+    const isVTT =
+      filename?.toLowerCase().endsWith(".vtt") ||
+      content.trim().startsWith("WEBVTT");
+
+    if (isVTT) {
+      subtitles = parseVTT(content);
+    } else {
+      subtitles = parseSRT(content);
+    }
+
     set({ subtitles });
   },
 }));
 
 // Time formatting function (SRT format)
-function formatTime(seconds: number): string {
+function formatSRTTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
@@ -172,6 +199,20 @@ function formatTime(seconds: number): string {
   return `${hours.toString().padStart(2, "0")}:${minutes
     .toString()
     .padStart(2, "0")}:${secs.toString().padStart(2, "0")},${ms
+    .toString()
+    .padStart(3, "0")}`;
+}
+
+// Time formatting function (VTT format)
+function formatVTTTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${ms
     .toString()
     .padStart(3, "0")}`;
 }
@@ -202,9 +243,63 @@ function parseSRT(content: string): SubtitleItem[] {
     .filter(Boolean) as SubtitleItem[];
 }
 
-// Time parsing function
+// Time parsing function (SRT format)
 function parseTime(timeStr: string): number {
   const [time, ms] = timeStr.split(",");
   const [hours, minutes, seconds] = time.split(":").map(Number);
   return hours * 3600 + minutes * 60 + seconds + Number(ms) / 1000;
+}
+
+// VTT parsing function
+function parseVTT(content: string): SubtitleItem[] {
+  // Remove WEBVTT header and split by double newlines
+  const cleanContent = content.replace(/^WEBVTT[\r\n]*/i, "");
+  const blocks = cleanContent.trim().split(/\n\s*\n/);
+
+  return blocks
+    .map((block) => {
+      const lines = block.trim().split("\n");
+
+      // Skip empty blocks
+      if (lines.length < 2) return null;
+
+      // Find the time line (might have cue ID before it)
+      let timeLineIndex = 0;
+      let timeLine = lines[timeLineIndex];
+
+      // If first line doesn't contain -->, it might be a cue ID
+      if (!timeLine.includes("-->")) {
+        timeLineIndex = 1;
+        timeLine = lines[timeLineIndex];
+      }
+
+      const timeMatch = timeLine.match(
+        /(\d{2}:\d{2}:\d{2}\.?\d{0,3}) --> (\d{2}:\d{2}:\d{2}\.?\d{0,3})/
+      );
+
+      if (!timeMatch) return null;
+
+      const startTime = parseVTTTime(timeMatch[1]);
+      const endTime = parseVTTTime(timeMatch[2]);
+      const text = lines.slice(timeLineIndex + 1).join("\n");
+
+      return {
+        id: Date.now().toString() + Math.random(),
+        startTime,
+        endTime,
+        text,
+      };
+    })
+    .filter(Boolean) as SubtitleItem[];
+}
+
+// Time parsing function (VTT format)
+function parseVTTTime(timeStr: string): number {
+  // Handle both formats: HH:MM:SS.mmm and HH:MM:SS,mmm
+  const normalizedTime = timeStr.replace(",", ".");
+  const [time, ms = "0"] = normalizedTime.split(".");
+  const [hours, minutes, seconds] = time.split(":").map(Number);
+  return (
+    hours * 3600 + minutes * 60 + seconds + Number(ms.padEnd(3, "0")) / 1000
+  );
 }
