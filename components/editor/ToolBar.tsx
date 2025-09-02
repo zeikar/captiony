@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import {
-  CloudArrowUpIcon,
+  PlusIcon,
   DocumentArrowDownIcon,
   FolderOpenIcon,
 } from "@heroicons/react/24/outline";
@@ -45,13 +45,13 @@ export function ToolBar() {
 
   return (
     <div className="flex items-center gap-3">
-      {/* Upload Video */}
+      {/* Select Video */}
       <button
         onClick={() => fileInputRef.current?.click()}
         className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
       >
-        <CloudArrowUpIcon className="h-4 w-4" />
-        Upload Video
+        <PlusIcon className="h-4 w-4" />
+        Select Video
       </button>
       <input
         ref={fileInputRef}

@@ -2,6 +2,7 @@
 
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
+import { useVideoStore } from "@/lib/stores/video-store";
 import { useVideoPlayer } from "./hooks/useVideoPlayer";
 import { calculateProgress } from "./utils/videoUtils";
 import { VideoArea } from "./components/VideoArea";
@@ -10,6 +11,7 @@ import { VolumeControl } from "./components/VolumeControl";
 
 export function VideoPlayer() {
   const { getCurrentSubtitle } = useSubtitleStore();
+  const { setVideoUrl } = useVideoStore();
   const {
     videoRef,
     video,
@@ -18,6 +20,11 @@ export function VideoPlayer() {
     handleVolumeChange,
     toggleMute,
   } = useVideoPlayer();
+
+  const handleVideoSelect = (file: File) => {
+    const url = URL.createObjectURL(file);
+    setVideoUrl(url);
+  };
 
   const currentSubtitle = getCurrentSubtitle();
   const progressPercentage = calculateProgress(
@@ -34,6 +41,7 @@ export function VideoPlayer() {
           videoUrl={video.url}
           currentSubtitle={currentSubtitle}
           onVideoClick={togglePlay}
+          onVideoSelect={handleVideoSelect}
         />
       </div>
 
