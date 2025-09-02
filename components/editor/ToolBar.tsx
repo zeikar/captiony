@@ -51,14 +51,41 @@ export function ToolBar() {
 
   return (
     <div className="flex items-center gap-3">
-      {/* Select Video */}
       <button
         onClick={() => fileInputRef.current?.click()}
-        className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+        className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-600/50 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm font-medium border border-gray-200/50 dark:border-gray-600/50 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm group"
       >
-        <PlusIcon className="h-4 w-4" />
+        <PlusIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
         Select Video
       </button>
+      
+      <button
+        onClick={() => srtInputRef.current?.click()}
+        className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-600/50 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm font-medium border border-gray-200/50 dark:border-gray-600/50 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm group"
+      >
+        <FolderOpenIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+        Load Subtitles
+      </button>
+
+      <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
+
+      <button
+        onClick={handleExportSRT}
+        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-800/30 dark:hover:to-indigo-800/30 text-blue-700 dark:text-blue-300 rounded-lg transition-all duration-200 text-sm font-medium border border-blue-200/50 dark:border-blue-700/50 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm group"
+      >
+        <DocumentArrowDownIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+        Export SRT
+      </button>
+      
+      <button
+        onClick={handleExportVTT}
+        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 hover:from-purple-100 hover:to-pink-100 dark:hover:from-purple-800/30 dark:hover:to-pink-800/30 text-purple-700 dark:text-purple-300 rounded-lg transition-all duration-200 text-sm font-medium border border-purple-200/50 dark:border-purple-700/50 hover:border-purple-300 dark:hover:border-purple-600 hover:shadow-sm group"
+      >
+        <DocumentArrowDownIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+        Export VTT
+      </button>
+
+      {/* Hidden inputs */}
       <input
         ref={fileInputRef}
         type="file"
@@ -66,15 +93,6 @@ export function ToolBar() {
         onChange={handleVideoUpload}
         className="hidden"
       />
-
-      {/* Load Subtitles */}
-      <button
-        onClick={() => srtInputRef.current?.click()}
-        className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
-      >
-        <FolderOpenIcon className="h-4 w-4" />
-        Load Subtitles
-      </button>
       <input
         ref={srtInputRef}
         type="file"
@@ -82,24 +100,6 @@ export function ToolBar() {
         onChange={handleSubtitleUpload}
         className="hidden"
       />
-
-      {/* Export SRT */}
-      <button
-        onClick={handleExportSRT}
-        className="flex items-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors text-sm"
-      >
-        <DocumentArrowDownIcon className="h-4 w-4" />
-        Export SRT
-      </button>
-
-      {/* Export VTT */}
-      <button
-        onClick={handleExportVTT}
-        className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm"
-      >
-        <DocumentArrowDownIcon className="h-4 w-4" />
-        Export VTT
-      </button>
     </div>
   );
 }
