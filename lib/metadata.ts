@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 
 export function getMetadata(): Metadata {
-  const title = "Captiony - Web Subtitle Editor";
+  const title = "Captiony - Online Subtitle Editor";
   const description =
-    "Web-based subtitle editor - Add and edit subtitles for your videos with ease";
+    "Create, edit and sync subtitles for your videos online. Free web-based subtitle editor supporting SRT and VTT formats with drag & drop functionality.";
   const siteUrl = "https://captiony.vercel.app";
 
   return {
     title,
     description,
+    alternates: {
+      canonical: siteUrl,
+    },
     keywords: [
       "subtitle editor",
       "video subtitles",
@@ -19,6 +22,16 @@ export function getMetadata(): Metadata {
       "online subtitle editor",
       "subtitle maker",
       "video captions",
+      "closed captions",
+      "subtitles online",
+      "free subtitle editor",
+      "web-based subtitle editor",
+      "video accessibility",
+      "subtitle synchronization",
+      "subtitle timing",
+      "subtitle sync",
+      "youtube subtitles",
+      "video transcription",
     ],
     authors: [{ name: "Captiony Team" }],
     creator: "Captiony",
@@ -37,7 +50,14 @@ export function getMetadata(): Metadata {
       siteName: "Captiony",
       url: siteUrl,
       locale: "en_US",
-      images: [`https://dogimg.vercel.app/api/og?url=${siteUrl}/`],
+      images: [
+        {
+          url: `https://dogimg.vercel.app/api/og?url=${siteUrl}/`,
+          width: 1200,
+          height: 630,
+          alt: "Professional subtitle editing tool - Create perfect captions for your videos",
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
@@ -45,7 +65,12 @@ export function getMetadata(): Metadata {
       description,
       site: "@captiony",
       creator: "@captiony",
-      images: [`https://dogimg.vercel.app/api/og?url=${siteUrl}/`],
+      images: [
+        {
+          url: `https://dogimg.vercel.app/api/og?url=${siteUrl}/`,
+          alt: "Professional subtitle editing tool - Create perfect captions for your videos",
+        },
+      ],
     },
     robots: {
       index: true,
@@ -66,5 +91,42 @@ export function getMetadata(): Metadata {
       apple: "/icons/apple-touch-icon.png",
     },
     manifest: "/icons/site.webmanifest",
+    other: {
+      "google-site-verification": "your-verification-code", // Replace with actual code
+    },
+  };
+}
+
+// JSON-LD structured data for better SEO
+export function getStructuredData() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: "Captiony",
+    description:
+      "Create, edit and sync subtitles for your videos online. Free web-based subtitle editor supporting SRT and VTT formats with drag & drop functionality.",
+    url: "https://captiony.vercel.app",
+    applicationCategory: "VideoEditingApplication",
+    operatingSystem: "Web Browser",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    creator: {
+      "@type": "Organization",
+      name: "Captiony Team",
+    },
+    featureList: [
+      "Subtitle editing",
+      "SRT file support",
+      "VTT file support",
+      "Video synchronization",
+      "Export functionality",
+      "Drag and drop interface",
+    ],
+    screenshot:
+      "https://dogimg.vercel.app/api/og?url=https://captiony.vercel.app/",
+    browserRequirements: "Requires JavaScript. Requires HTML5.",
   };
 }
