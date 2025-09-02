@@ -30,68 +30,65 @@ export const TimelineControls = React.memo<TimelineControlsProps>(
     };
 
     return (
-      <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200/50 dark:border-gray-700/50">
         {/* Timeline Mode Toggle */}
-        <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+        <div className="flex items-center bg-gray-100/50 dark:bg-gray-800/50 rounded-lg p-0.5 border border-gray-200/50 dark:border-gray-700/50">
           <button
             onClick={() => onModeChange("free")}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-150 ${
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
               timelineMode === "free"
-                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
             }`}
           >
             Free
           </button>
           <button
             onClick={() => onModeChange("centered")}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-150 ${
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
               timelineMode === "centered"
-                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
             }`}
           >
             Centered
           </button>
         </div>
 
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-1 border border-gray-200/50 dark:border-gray-700/50">
+            <button
+              onClick={handleZoomOut}
+              className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 font-semibold text-base"
+              disabled={timelineScale <= 0.5}
+            >
+              −
+            </button>
 
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleZoomOut}
-            className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150 font-medium"
-            disabled={timelineScale <= 0.5}
-          >
-            −
-          </button>
+            <span className="min-w-[60px] text-center text-xs text-gray-600 dark:text-gray-400 font-mono px-2 py-1">
+              {Math.round(timelineScale * 100)}%
+            </span>
 
-          <span className="min-w-[70px] text-center text-sm text-gray-700 dark:text-gray-300 font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded border">
-            {Math.round(timelineScale * 100)}%
-          </span>
+            <button
+              onClick={handleZoomIn}
+              className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 font-semibold text-base"
+              disabled={timelineScale >= 5}
+            >
+              +
+            </button>
+          </div>
 
-          <button
-            onClick={handleZoomIn}
-            className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150 font-medium"
-            disabled={timelineScale >= 5}
-          >
-            +
-          </button>
-        </div>
-
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
-
-        <div className="flex items-center gap-2">
           <button
             onClick={onResetZoom}
-            className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 text-sm text-gray-900 dark:text-gray-100 transition-colors duration-150"
+            className="px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-all duration-200 font-medium"
           >
-            1:1
+            Reset
           </button>
 
           <button
             onClick={onFitToView}
-            className="px-3 py-1.5 bg-blue-600 dark:bg-blue-700 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 text-sm transition-colors duration-150"
+            className="px-3 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 text-xs font-medium transition-all duration-200 shadow-sm"
           >
             Fit to View
           </button>
