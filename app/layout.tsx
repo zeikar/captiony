@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { NotificationProvider } from "@/contexts/notification-context";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import { getMetadata, getStructuredData } from "@/lib/metadata";
+import { getMetadata, getViewport, getStructuredData } from "@/lib/metadata";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = getMetadata();
+export const viewport: Viewport = getViewport();
 
 export default function RootLayout({
   children,

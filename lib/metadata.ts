@@ -1,4 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+
+export function getViewport(): Viewport {
+  return {
+    width: "device-width",
+    initialScale: 1,
+    themeColor: "#2EE6A8",
+    colorScheme: "light dark",
+  };
+}
 
 export function getMetadata(): Metadata {
   const title = "Captiony - Online Subtitle Editor";
@@ -40,9 +49,6 @@ export function getMetadata(): Metadata {
     applicationName: "Captiony",
     category: "productivity",
     classification: "Video Editing Tool",
-    themeColor: "#2EE6A8",
-    colorScheme: "light dark",
-    viewport: "width=device-width, initial-scale=1",
     openGraph: {
       type: "website",
       title,
