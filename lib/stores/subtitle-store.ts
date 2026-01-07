@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { useVideoStore } from "./video-store";
 
 // Subtitle item type definition
@@ -42,7 +43,9 @@ interface SubtitleStore {
   importSubtitles: (content: string, filename?: string) => void;
 }
 
-export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
+export const useSubtitleStore = create<SubtitleStore>()(
+  persist(
+    (set, get) => ({
   // Initial state
   subtitles: [
     {
@@ -187,7 +190,14 @@ export const useSubtitleStore = create<SubtitleStore>((set, get) => ({
 
     set({ subtitles });
   },
-}));
+}),
+    {
+      name: "captiony-subtitles",
+      // 자막 데이터만 저장하고, UI 상태(선택/편집 중인 항목, 타임라인)는 저장하지 않음
+      partialize: (state) => ({ subtitles: state.subtitles }),
+    }
+  )
+);
 
 // Time formatting function (SRT format)
 function formatSRTTime(seconds: number): string {
