@@ -41,6 +41,7 @@ interface SubtitleStore {
   exportSRT: () => string;
   exportVTT: () => string;
   importSubtitles: (content: string, filename?: string) => void;
+  clearAllSubtitles: () => void;
 }
 
 export const useSubtitleStore = create<SubtitleStore>()(
@@ -190,6 +191,13 @@ export const useSubtitleStore = create<SubtitleStore>()(
 
     set({ subtitles });
   },
+
+  clearAllSubtitles: () =>
+    set({
+      subtitles: [],
+      selectedSubtitleId: null,
+      editingSubtitleId: null,
+    }),
 }),
     {
       name: "captiony-subtitles",
