@@ -2,6 +2,7 @@
 
 import { ToolBar } from "../editor/ToolBar";
 import { DarkModeToggle } from "../ui/DarkModeToggle";
+import GitHubIcon from "../icons/GitHubIcon";
 
 export function NavBar() {
   return (
@@ -19,8 +20,18 @@ export function NavBar() {
           <ToolBar />
         </div>
 
-        {/* 오른쪽 다크모드 토글 */}
-        <div className="flex items-center">
+        {/* 오른쪽 GitHub 링크 + 다크모드 토글 */}
+        <div className="flex items-center gap-3">
+          <a
+            href="https://github.com/zeikar/captiony"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            aria-label="View source on GitHub"
+          >
+            <GitHubIcon className="w-5 h-5" />
+            <span className="text-sm font-medium hidden sm:inline">GitHub</span>
+          </a>
           <DarkModeToggle />
         </div>
       </div>
