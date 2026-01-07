@@ -1,75 +1,56 @@
-# Next.js 15 + Firebase Boilerplate
+# Captiony
 
-![Next.js + Firebase](https://nextjs-firebase-starter.vercel.app/repository-open-graph-template.png)
+An intuitive and lightweight web-based subtitle editor for YouTube. Open-source, fast, and easy to use. 🎥✍️
 
-Production-ready Next.js 15 + Firebase boilerplate with built-in authentication, server-side rendering, and TypeScript support for rapid application development. Launch secure, scalable web applications in minutes, not days.
+![Captiony Screenshot](.github/screenshots/screenshot.png)
 
 ## Features
 
-### Authentication Features
+### Core Features
 
-- ✅ Server Side Authentication
-- ✅ Sign In (Google + Anonymous)
-- ✅ Upgrade Account (Anonymous → Google)
-- ✅ Delete Account
+- **Video Upload & Playback** - Support for all major video formats
+- **Timeline-Based Editing** - Visual timeline with drag-and-drop subtitle manipulation
+- **Real-time Preview** - See subtitles overlaid on video as you edit
+- **Auto-Save** - Automatic localStorage persistence prevents data loss
+- **Keyboard Shortcuts** - Professional editing workflow with comprehensive shortcuts
+- **Dark Mode** - Beautiful dark/light theme support
 
-### Technical Features
+### Subtitle Management
 
-- ✅ Next.js 15 (App Router)
-- ✅ Firebase Authentication
-- ✅ TypeScript Support
-- ✅ Tailwind CSS Styling
-- ✅ SEO Optimized
-- ✅ Responsive Design
-- ✅ Notification System
+- **Add & Edit Subtitles** - Create and modify subtitle text with precise timing
+- **Drag & Resize** - Adjust timing by dragging subtitle bars on the timeline
+- **Timeline Modes**
+  - Free mode: Navigate timeline freely
+  - Centered mode: Playhead stays centered for easier editing
+- **Import/Export**
+  - Import: SRT, VTT formats
+  - Export: SRT, VTT formats
+
+### User Experience
+
+- **Responsive Design** - Works seamlessly on desktop and tablet
+- **Exit Protection** - Warns before leaving page to prevent accidental data loss
+- **Timeline Zoom** - Zoom in/out for precise or overview editing
+- **Visual Feedback** - Dimmed past timeline for better focus
 
 ## Demo
 
-[Live Demo](https://nextjs-firebase-starter.vercel.app/)
+Try it live at: [captiony.vercel.app](https://captiony.vercel.app)
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 18.17.0 or later
-- Firebase account with a project created
-- Firebase Admin SDK credentials
-
-### Environment Variables
-
-You can set up environment variables in two ways:
-
-#### Option 1: Copy from example file (Recommended)
-
-Copy the provided example file:
-
-```bash
-cp .env.local.example .env.local
-```
-
-Then edit `.env.local` with your actual Firebase configuration values.
-
-#### Option 2: Create manually
-
-Create a `.env.local` file in the root directory with the following variables:
-
-```
-# Firebase Admin SDK credentials (for server-side authentication)
-FIREBASE_ADMIN_SERVICE_ACCOUNT={"type":"service_account","project_id":"YOUR_PROJECT_ID","private_key_id":"YOUR_PRIVATE_KEY_ID","private_key":"YOUR_PRIVATE_KEY","client_email":"YOUR_CLIENT_EMAIL","client_id":"YOUR_CLIENT_ID","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"YOUR_CLIENT_X509_CERT_URL","universe_domain":"googleapis.com"}
-
-# Firebase Web SDK configuration (for client-side authentication)
-NEXT_PUBLIC_FIREBASE_WEB_SDK_CONFIG={"apiKey":"YOUR_API_KEY","authDomain":"YOUR_PROJECT_ID.firebaseapp.com","projectId":"YOUR_PROJECT_ID","storageBucket":"YOUR_PROJECT_ID.firebasestorage.app","messagingSenderId":"YOUR_MESSAGING_SENDER_ID","appId":"YOUR_APP_ID"}
-```
-
-> **IMPORTANT**: When setting up the `FIREBASE_ADMIN_SERVICE_ACCOUNT`, `NEXT_PUBLIC_FIREBASE_WEB_SDK_CONFIG` environment variable, you must remove all line breaks from the JSON. The entire JSON content should be on a single line. Especially in the `private_key` field, line breaks can cause authentication errors. Always compress the JSON into one line before adding it to your `.env.local` file.
+- npm, yarn, pnpm, or bun
 
 ### Installation
 
 1. Clone the repository
 
 ```bash
-git clone https://github.com/zeikar/nextjs-firebase-boilerplate.git
-cd nextjs-firebase-boilerplate
+git clone https://github.com/zeikar/captiony.git
+cd captiony
 ```
 
 2. Install dependencies
@@ -96,105 +77,105 @@ pnpm dev
 bun dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-## Firebase Setup
+## Usage
 
-### Step 1: Create a Firebase Project
+### Basic Workflow
 
-1. Go to the [Firebase Console](https://console.firebase.google.com/)
-2. Click "Add project"
-3. Follow the setup instructions
+1. **Upload Video**: Click "Select Video" to upload your video file
+2. **Add Subtitles**: Click the "+" button or use keyboard shortcuts to add subtitle entries
+3. **Edit Timing**: Drag subtitle bars on the timeline or edit timestamps directly
+4. **Edit Text**: Click on subtitle text to edit in the right panel
+5. **Export**: Download your subtitles as SRT or VTT files
 
-### Step 2: Enable Authentication
+### Keyboard Shortcuts
 
-1. In your Firebase project console, go to "Authentication"
-2. Click "Get started"
-3. Enable Google and Anonymous sign-in methods
-
-### Step 3: Generate Admin SDK Credentials
-
-1. In your Firebase project settings, go to "Service accounts"
-2. Click "Generate new private key"
-3. Save the JSON file and use its contents for the `FIREBASE_ADMIN_SERVICE_ACCOUNT` environment variable
-
-### Step 4: Get Web SDK Configuration
-
-1. In your Firebase project settings, go to "General"
-2. Under "Your apps", click the web app (create one if needed)
-3. Copy the Firebase configuration object for the `NEXT_PUBLIC_FIREBASE_WEB_SDK_CONFIG` environment variable
+- `Space` - Play/Pause video
+- `←/→` - Seek backward/forward 5 seconds
+- `Shift + ←/→` - Seek backward/forward 1 second
+- `↑/↓` - Navigate between subtitles
+- `Enter` - Start editing selected subtitle
+- `Delete` - Delete selected subtitle
+- `+/-` - Zoom timeline in/out
+- `?` - Show keyboard shortcuts help
 
 ## Project Structure
 
 ```
-app/                  - Next.js App Router pages
-  page.tsx            - Homepage
-  layout.tsx          - Root layout
-  api/                - API routes for authentication
-    auth/
-      signin/         - Sign in functionality
-      signout/        - Sign out functionality
-      user/           - User data functionality
-components/           - Reusable UI components
-  auth/               - Authentication components
-    AccountDeleteButton.tsx
-    AccountUpgradeButton.tsx
-    AuthButtons.tsx
-    ServerAuthInfo.tsx
-  common/             - Common UI components
-  icons/              - Icon components
-    GitHubIcon.tsx
-    GoogleIcon.tsx
-    Loading.tsx
-    UserIcon.tsx
-  layout/             - Layout components
-  modals/             - Modal components
-    AuthModal.tsx
-  notifications/      - Notification components
-    notification-item.tsx
-contexts/             - React contexts
-  notification-context.tsx
-lib/                  - Utility functions and services
-  firebase/           - Firebase related utilities
-    admin.ts          - Firebase Admin SDK setup
-    auth-server.ts    - Server-side auth utilities
-    authService.ts    - Client-side auth service
-    client.ts         - Firebase client SDK setup
-    useFirebaseAuth.ts - Custom hook for Firebase auth
-  utils/              - General utility functions
-    firebaseErrors.ts - Firebase error handling
-    useFirebaseErrorHandler.ts
-public/               - Static files
-types/                - TypeScript type definitions
+app/                      - Next.js App Router pages
+  page.tsx                - Main application page
+  layout.tsx              - Root layout with theme provider
+components/
+  editor/                 - Subtitle editor components
+    CaptionEditor.tsx     - Main editor container
+    VideoPlayer.tsx       - Video playback component
+    SubtitleTimeline.tsx  - Timeline visualization
+    SubtitleEditor.tsx    - Subtitle text editor
+    ToolBar.tsx           - Import/export toolbar
+    components/           - Granular UI components
+      SubtitleBar.tsx
+      TimelineGrid.tsx
+      TimelinePlayhead.tsx
+      VideoUploader.tsx
+      ...
+  layout/                 - Layout components
+    NavBar.tsx            - Top navigation bar
+  ui/                     - Reusable UI components
+    DarkModeToggle.tsx
+lib/
+  stores/                 - Zustand state management
+    subtitle-store.ts     - Subtitle data and operations
+    video-store.ts        - Video playback state
+  metadata.ts             - SEO metadata configuration
+public/                   - Static assets
 ```
 
-## Key Features
+## Technical Stack
 
-### Server-Side Authentication
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS 4
+- **State Management**: Zustand with localStorage persistence
+- **UI Components**: Headless UI, Heroicons
+- **File Handling**: FileSaver.js
+- **Analytics**: Vercel Analytics
 
-This boilerplate implements secure server-side authentication using Firebase Admin SDK, allowing you to verify user sessions on the server side and protect API routes.
+## Key Features in Detail
 
-### Authentication Modal
+### Auto-Save System
 
-A ready-to-use authentication modal that supports Google Sign-in and Anonymous authentication, with the ability to upgrade anonymous accounts to permanent ones.
+Subtitles are automatically saved to browser localStorage as you work. When you return to the app, your work is automatically restored, preventing data loss from accidental page closures or browser crashes.
 
-### Firebase Error Handling
+### Timeline Editing
 
-Built-in error handling for Firebase authentication with user-friendly error messages.
+The timeline provides a visual representation of your subtitles over time. You can:
+- Drag subtitle bars to change their position
+- Resize bars by dragging edges to adjust duration
+- Zoom in for frame-accurate editing
+- Zoom out for an overview of your entire subtitle track
 
-### Notification System
+### Import/Export
 
-A contextual notification system to display success/error messages to users.
+- **Import**: Load existing SRT or VTT subtitle files to continue editing
+- **Export**: Download your subtitles in industry-standard SRT or VTT formats compatible with YouTube, video players, and professional editing software
 
-## Deployment
+## Browser Compatibility
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new) from the creators of Next.js.
-
-Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Captiony works best in modern browsers:
+- Chrome/Edge 90+
+- Firefox 88+
+- Safari 14+
 
 ## Contributing
 
-Contributions are always welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
@@ -202,10 +183,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgements
 
-- [Next.js](https://nextjs.org/)
-- [Firebase](https://firebase.google.com/)
-- [Tailwind CSS](https://tailwindcss.com/)
+- [Next.js](https://nextjs.org/) - The React framework
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+- [Zustand](https://zustand-demo.pmnd.rs/) - State management
+- [Heroicons](https://heroicons.com/) - Beautiful icons
 
 ---
 
-© 2025 Next.js Firebase Boilerplate
+Built with ❤️ by [zeikar](https://github.com/zeikar)
