@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import {
   MagnifyingGlassIcon,
   PlusIcon,
@@ -13,38 +14,8 @@ import { KeyboardShortcutsHelp } from "./components/KeyboardShortcutsHelp";
 import { findCurrentSubtitleId } from "./utils/subtitleUtils";
 import type { SubtitleItem as SubtitleItemType } from "@/lib/stores/subtitle-store";
 
-// Virtual scroll constants
-const VIRTUAL_SCROLL_CONFIG = {
-  BASE_ITEM_HEIGHT: 180, // default height
-  EDITING_ITEM_HEIGHT: 240, // editing mode height (reduced from 280 to 240)
-  LONG_TEXT_ADDITIONAL_HEIGHT: 40, // extra height for long text (reduced from 60 to 40)
-  MARGIN_BOTTOM: 12,
-  VISIBLE_ITEMS: 10,
-  BUFFER_SIZE: 5,
-} as const;
-
-// Height calculation function
-const calculateItemHeight = (
-  subtitle: SubtitleItemType,
-  isEditing: boolean
-): number => {
-  const {
-    BASE_ITEM_HEIGHT,
-    EDITING_ITEM_HEIGHT,
-    LONG_TEXT_ADDITIONAL_HEIGHT,
-    MARGIN_BOTTOM,
-  } = VIRTUAL_SCROLL_CONFIG;
-
-  let height = isEditing ? EDITING_ITEM_HEIGHT : BASE_ITEM_HEIGHT;
-
-  // Extra height based on text length
-  if (subtitle.text && subtitle.text.length > 100) {
-    const additionalLines = Math.floor((subtitle.text.length - 100) / 50);
-    height += Math.min(additionalLines * 20, LONG_TEXT_ADDITIONAL_HEIGHT);
-  }
-
-  return height + MARGIN_BOTTOM;
-};
+// Spacing between subtitle cards in the virtual list (px)
+const ITEM_GAP = 12;
 
 // Utility functions
 const formatTime = (seconds: number): string => {
@@ -74,26 +45,17 @@ export function SubtitleEditor() {
   // Local state
   const [searchTerm, setSearchTerm] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
-  const [scrollTop, setScrollTop] = useState(0);
 
   // Refs
-  const subtitleRefs = useRef(new Map<string, HTMLDivElement>());
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const autoScrollRef = useRef({
-    lastProcessedSubtitleId: null as string | null,
-    isProcessing: false,
-  });
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+  // Latest range of rendered items, used to skip redundant scrolls.
+  const visibleRangeRef = useRef({ startIndex: 0, endIndex: 0 });
 
   // Derived values
   const currentSubtitleId = useMemo(
     () => findCurrentSubtitleId(subtitles, currentTime),
     [subtitles, currentTime]
   );
-
-  const currentSubtitle = useMemo(() => {
-    if (!currentSubtitleId) return null;
-    return subtitles.find((sub) => sub.id === currentSubtitleId) || null;
-  }, [subtitles, currentSubtitleId]);
 
   const { filteredSubtitles, sortedFilteredSubtitles } = useMemo(() => {
     let filtered = subtitles;
@@ -119,76 +81,7 @@ export function SubtitleEditor() {
     return { filteredSubtitles: filtered, sortedFilteredSubtitles: sorted };
   }, [subtitles, searchTerm]);
 
-  // Dynamic height calculation
-  const itemHeights = useMemo(() => {
-    return sortedFilteredSubtitles.map((subtitle) =>
-      calculateItemHeight(subtitle, editingSubtitleId === subtitle.id)
-    );
-  }, [sortedFilteredSubtitles, editingSubtitleId]);
-
-  const cumulativeHeights = useMemo(() => {
-    const cumulative = [0];
-    itemHeights.forEach((height, index) => {
-      cumulative[index + 1] = cumulative[index] + height;
-    });
-    return cumulative;
-  }, [itemHeights]);
-
-  const totalHeight = cumulativeHeights[cumulativeHeights.length - 1];
-
-  // Virtual scroll calculation (supports dynamic heights)
-  const visibleRange = useMemo(() => {
-    const { VISIBLE_ITEMS, BUFFER_SIZE } = VIRTUAL_SCROLL_CONFIG;
-
-    if (cumulativeHeights.length <= 1) {
-      return { startIndex: 0, endIndex: 0 };
-    }
-
-    // Find start index (binary search)
-    let startIndex = 0;
-    for (let i = 0; i < cumulativeHeights.length - 1; i++) {
-      if (cumulativeHeights[i + 1] > scrollTop) {
-        startIndex = Math.max(0, i - BUFFER_SIZE);
-        break;
-      }
-    }
-
-    // Find end index
-    const containerHeight =
-      VISIBLE_ITEMS * VIRTUAL_SCROLL_CONFIG.BASE_ITEM_HEIGHT;
-    const targetBottom = scrollTop + containerHeight;
-    let endIndex = sortedFilteredSubtitles.length - 1;
-
-    for (let i = startIndex; i < cumulativeHeights.length - 1; i++) {
-      if (cumulativeHeights[i] > targetBottom) {
-        endIndex = Math.min(
-          sortedFilteredSubtitles.length - 1,
-          i + BUFFER_SIZE
-        );
-        break;
-      }
-    }
-
-    return { startIndex, endIndex };
-  }, [scrollTop, cumulativeHeights, sortedFilteredSubtitles.length]);
-
-  const visibleSubtitles = useMemo(() => {
-    const { startIndex, endIndex } = visibleRange;
-    return sortedFilteredSubtitles
-      .slice(startIndex, endIndex + 1)
-      .map((subtitle, index) => ({
-        subtitle,
-        actualIndex: startIndex + index + 1,
-      }));
-  }, [sortedFilteredSubtitles, visibleRange]);
-
-  const { startIndex } = visibleRange;
-
   // Event handlers
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    setScrollTop(e.currentTarget.scrollTop);
-  }, []);
-
   const handleSubtitleSelect = useCallback(
     (subtitle: SubtitleItemType) => {
       selectSubtitle(subtitle.id);
@@ -240,111 +133,50 @@ export function SubtitleEditor() {
   }, [addSubtitle, selectSubtitle, setEditingSubtitle]);
 
   const handleAutoScrollToggle = useCallback(() => {
-    setAutoScroll((prev) => {
-      autoScrollRef.current = {
-        lastProcessedSubtitleId: null,
-        isProcessing: false,
-      };
-      return !prev;
-    });
+    setAutoScroll((prev) => !prev);
   }, []);
 
-  const autoScrollToSubtitle = useCallback(
+  // Center a subtitle in the list, skipping the scroll if it's already visible.
+  const scrollToSubtitle = useCallback(
     (subtitleId: string) => {
-      if (!scrollContainerRef.current) return;
-
-      const subtitleIndex = sortedFilteredSubtitles.findIndex(
+      const index = sortedFilteredSubtitles.findIndex(
         (sub) => sub.id === subtitleId
       );
+      if (index === -1) return;
 
-      if (subtitleIndex === -1) return;
+      const { startIndex, endIndex } = visibleRangeRef.current;
+      if (index > startIndex && index < endIndex) return;
 
-      const container = scrollContainerRef.current;
-      const containerHeight = container.clientHeight;
-
-      // Calculate the target subtitle's position
-      const itemTop = cumulativeHeights[subtitleIndex];
-      const itemBottom = cumulativeHeights[subtitleIndex + 1];
-      const itemHeight = itemBottom - itemTop;
-
-      const currentScrollTop = container.scrollTop;
-      const visibleTop = currentScrollTop;
-      const visibleBottom = currentScrollTop + containerHeight;
-
-      // Visibility check accounting for buffer zone
-      const buffer = 50;
-      if (
-        itemTop >= visibleTop + buffer &&
-        itemBottom <= visibleBottom - buffer
-      ) {
-        return; // already fully visible, no scroll needed
-      }
-
-      // Scroll to center the item
-      const centeredScrollTop = itemTop - containerHeight / 2 + itemHeight / 2;
-
-      container.scrollTo({
-        top: Math.max(0, centeredScrollTop),
+      virtuosoRef.current?.scrollToIndex({
+        index,
+        align: "center",
         behavior: "smooth",
       });
     },
-    [sortedFilteredSubtitles, cumulativeHeights]
+    [sortedFilteredSubtitles]
   );
 
   // Effects
+
+  // Scroll to the selected subtitle (manual click, keyboard nav, or playback follow).
   useEffect(() => {
-    if (selectedSubtitleId) {
-      // Small delay to let virtual scroll finish rendering before scrolling
-      const timeoutId = setTimeout(() => {
-        autoScrollToSubtitle(selectedSubtitleId);
-      }, 100); // increased from 50ms to 100ms
+    if (!selectedSubtitleId) return;
 
-      return () => clearTimeout(timeoutId);
-    }
-  }, [selectedSubtitleId, autoScrollToSubtitle]);
+    // Defer so Virtuoso has the latest data/range before scrolling.
+    const timeoutId = setTimeout(() => {
+      scrollToSubtitle(selectedSubtitleId);
+    }, 100);
 
-  // Scroll on keyboard navigation even when auto-scroll is off
+    return () => clearTimeout(timeoutId);
+  }, [selectedSubtitleId, scrollToSubtitle]);
+
+  // Follow the playing subtitle: selecting it drives the scroll effect above.
   useEffect(() => {
-    // Force scroll when a subtitle is selected via keyboard navigation
-    if (selectedSubtitleId && !isPlaying) {
-      const timeoutId = setTimeout(() => {
-        autoScrollToSubtitle(selectedSubtitleId);
-      }, 50);
+    if (!autoScroll || !isPlaying || !currentSubtitleId) return;
+    if (currentSubtitleId === selectedSubtitleId) return;
 
-      return () => clearTimeout(timeoutId);
-    }
-  }, [selectedSubtitleId, isPlaying, autoScrollToSubtitle]);
-
-  useEffect(() => {
-    if (!autoScroll || !isPlaying || !currentSubtitleId) {
-      return;
-    }
-
-    if (
-      autoScrollRef.current.lastProcessedSubtitleId === currentSubtitleId ||
-      selectedSubtitleId === currentSubtitleId ||
-      autoScrollRef.current.isProcessing
-    ) {
-      if (selectedSubtitleId === currentSubtitleId) {
-        autoScrollRef.current.lastProcessedSubtitleId = currentSubtitleId;
-      }
-      return;
-    }
-
-    autoScrollRef.current.isProcessing = true;
-    autoScrollRef.current.lastProcessedSubtitleId = currentSubtitleId;
-
-    requestAnimationFrame(() => {
-      selectSubtitle(currentSubtitleId);
-      autoScrollRef.current.isProcessing = false;
-    });
-  }, [
-    currentSubtitleId,
-    autoScroll,
-    isPlaying,
-    selectedSubtitleId,
-    selectSubtitle,
-  ]);
+    selectSubtitle(currentSubtitleId);
+  }, [currentSubtitleId, autoScroll, isPlaying, selectedSubtitleId, selectSubtitle]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 h-full flex flex-col">
@@ -360,7 +192,7 @@ export function SubtitleEditor() {
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <button
             onClick={handleAutoScrollToggle}
@@ -413,12 +245,8 @@ export function SubtitleEditor() {
         </div>
       </div>
 
-      {/* Subtitle List - virtual scroll */}
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto p-4"
-        onScroll={handleScroll}
-      >
+      {/* Subtitle List */}
+      <div className="flex-1 min-h-0 px-4 py-4">
         {filteredSubtitles.length === 0 ? (
           <EmptyState
             type={subtitles.length === 0 ? "no-subtitles" : "no-results"}
@@ -427,73 +255,33 @@ export function SubtitleEditor() {
             }
           />
         ) : (
-          <div style={{ height: `${totalHeight}px`, position: "relative" }}>
-            <div
-              style={{
-                transform: `translateY(${cumulativeHeights[startIndex]}px)`,
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-              }}
-            >
-              {visibleSubtitles.map(
-                (
-                  {
-                    subtitle,
-                    actualIndex,
-                  }: {
-                    subtitle: SubtitleItemType;
-                    actualIndex: number;
-                  },
-                  index
-                ) => {
-                  const currentIndex = startIndex + index;
-                  const itemHeight = itemHeights[currentIndex];
-                  return (
-                    <div
-                      key={subtitle.id}
-                      style={{
-                        height: `${itemHeight}px`,
-                        paddingBottom: `${VIRTUAL_SCROLL_CONFIG.MARGIN_BOTTOM}px`,
-                        boxSizing: "border-box",
-                      }}
-                      ref={(el) => {
-                        if (el) {
-                          subtitleRefs.current.set(subtitle.id, el);
-                        } else {
-                          subtitleRefs.current.delete(subtitle.id);
-                        }
-                      }}
-                    >
-                      <div
-                        style={{
-                          height: `${
-                            itemHeight - VIRTUAL_SCROLL_CONFIG.MARGIN_BOTTOM
-                          }px`,
-                        }}
-                      >
-                        <SubtitleItem
-                          subtitle={subtitle}
-                          index={actualIndex}
-                          isSelected={selectedSubtitleId === subtitle.id}
-                          isCurrent={currentSubtitleId === subtitle.id}
-                          isEditing={editingSubtitleId === subtitle.id}
-                          onEdit={handleEdit}
-                          onSave={handleSave}
-                          onCancel={handleCancel}
-                          onDelete={() => deleteSubtitle(subtitle.id)}
-                          onSelect={() => handleSubtitleSelect(subtitle)}
-                          onTimeChange={handleTimeChange}
-                          formatTime={formatTime}
-                        />
-                      </div>
-                    </div>
-                  );
-                }
-              )}
-            </div>
-          </div>
+          <Virtuoso
+            ref={virtuosoRef}
+            style={{ height: "100%" }}
+            data={sortedFilteredSubtitles}
+            computeItemKey={(_, subtitle) => subtitle.id}
+            rangeChanged={(range) => {
+              visibleRangeRef.current = range;
+            }}
+            itemContent={(index, subtitle) => (
+              <div style={{ paddingBottom: ITEM_GAP }}>
+                <SubtitleItem
+                  subtitle={subtitle}
+                  index={index + 1}
+                  isSelected={selectedSubtitleId === subtitle.id}
+                  isCurrent={currentSubtitleId === subtitle.id}
+                  isEditing={editingSubtitleId === subtitle.id}
+                  onEdit={handleEdit}
+                  onSave={handleSave}
+                  onCancel={handleCancel}
+                  onDelete={() => deleteSubtitle(subtitle.id)}
+                  onSelect={() => handleSubtitleSelect(subtitle)}
+                  onTimeChange={handleTimeChange}
+                  formatTime={formatTime}
+                />
+              </div>
+            )}
+          />
         )}
       </div>
     </div>
