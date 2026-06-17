@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback } from "react";
 import { useVideoStore } from "@/lib/stores/video-store";
 
-const SYNC_THRESHOLD = 0.1; // 0.1초 이상 차이날 때만 동기화
+const SYNC_THRESHOLD = 0.1; // only sync when drift exceeds 0.1s
 
 export function useVideoPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -18,34 +18,34 @@ export function useVideoPlayer() {
     setVideoRef,
   } = useVideoStore();
 
-  // videoRef를 store에 등록
+  // Register videoRef with the store
   useEffect(() => {
     setVideoRef(videoRef);
   }, [setVideoRef]);
 
-  // 부드러운 시간 업데이트를 위한 애니메이션 프레임 기반 업데이트
+  // RAF-based update for smooth time progress
   const updateCurrentTime = useCallback(() => {
     if (!isSeekingRef.current && videoRef.current) {
       const currentTime = videoRef.current.currentTime;
-      setCurrentTimeSmooth(currentTime); // 부드러운 업데이트 사용
+      setCurrentTimeSmooth(currentTime); // use smooth update
 
-      // 비디오가 재생 중일 때만 연속 업데이트
+      // Continue looping only while playing
       if (!videoRef.current.paused) {
         animationFrameRef.current = requestAnimationFrame(updateCurrentTime);
       }
     }
   }, [setCurrentTimeSmooth]);
 
-  // 비디오 이벤트 핸들러들
+  // Video event handlers
   const handleTimeUpdate = useCallback(() => {
-    // timeupdate 이벤트는 애니메이션 프레임 기반 업데이트를 시작하는 트리거로만 사용
+    // timeupdate is used only as a trigger to kick off the RAF-based update loop
     if (!isSeekingRef.current && videoRef.current && !videoRef.current.paused) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
       updateCurrentTime();
     } else if (isSeekingRef.current && videoRef.current) {
-      // seeking 중일 때는 즉시 업데이트 (부드러운 업데이트 아님)
+      // During seek, update immediately (no smooth update)
       setCurrentTime(videoRef.current.currentTime);
     }
   }, [setCurrentTime, updateCurrentTime]);
@@ -56,7 +56,7 @@ export function useVideoPlayer() {
 
     setVideoDuration(videoElement.duration);
 
-    // 초기 시간 동기화
+    // Sync initial time
     if (video.currentTime !== videoElement.currentTime) {
       videoElement.currentTime = video.currentTime;
     }
@@ -66,7 +66,7 @@ export function useVideoPlayer() {
     const videoElement = videoRef.current;
     if (!videoElement) return;
 
-    // 데이터 로드 완료 후 초기 동기화
+    // Sync after data is fully loaded
     if (
       Math.abs(video.currentTime - videoElement.currentTime) > SYNC_THRESHOLD
     ) {
@@ -76,7 +76,7 @@ export function useVideoPlayer() {
 
   const handlePlay = useCallback(() => {
     setIsPlaying(true);
-    // 재생 시작 시 애니메이션 프레임 기반 업데이트 시작
+    // Start RAF-based update loop on play
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
@@ -85,7 +85,7 @@ export function useVideoPlayer() {
 
   const handlePause = useCallback(() => {
     setIsPlaying(false);
-    // 일시정지 시 애니메이션 프레임 취소
+    // Cancel RAF on pause
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
@@ -94,7 +94,7 @@ export function useVideoPlayer() {
 
   const handleSeeked = useCallback(() => {
     isSeekingRef.current = false;
-    // seek 완료 후 재생 중이면 애니메이션 재시작
+    // Restart RAF loop after seek if still playing
     if (videoRef.current && !videoRef.current.paused) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -105,18 +105,18 @@ export function useVideoPlayer() {
 
   const handleEnded = useCallback(() => {
     setIsPlaying(false);
-    // 비디오 끝날 때 정확히 duration으로 설정
+    // Set time to exact duration when video ends
     if (videoRef.current) {
       setCurrentTime(videoRef.current.duration);
     }
-    // 애니메이션 프레임 취소
+    // Cancel RAF
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
   }, [setIsPlaying, setCurrentTime]);
 
-  // 비디오 이벤트 리스너 설정
+  // Set up video event listeners
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement || !video.url) return;
@@ -131,12 +131,12 @@ export function useVideoPlayer() {
       ["ended", handleEnded],
     ] as const;
 
-    // 이벤트 리스너 등록
+    // Register event listeners
     events.forEach(([event, handler]) => {
       videoElement.addEventListener(event, handler);
     });
 
-    // 클린업
+    // Cleanup
     return () => {
       events.forEach(([event, handler]) => {
         videoElement.removeEventListener(event, handler);
@@ -153,7 +153,7 @@ export function useVideoPlayer() {
     handleEnded,
   ]);
 
-  // 컴포넌트 언마운트 시 애니메이션 프레임 정리
+  // Cancel RAF on unmount
   useEffect(() => {
     return () => {
       if (animationFrameRef.current) {
@@ -162,7 +162,7 @@ export function useVideoPlayer() {
     };
   }, []);
 
-  // 외부에서 currentTime 변경 시 동기화
+  // Sync video element when currentTime is changed externally
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement || !video.url) return;
@@ -175,7 +175,7 @@ export function useVideoPlayer() {
     }
   }, [video.currentTime, video.url]);
 
-  // 플레이어 컨트롤 함수들
+  // Player control functions
   const togglePlay = useCallback(() => {
     const videoElement = videoRef.current;
     if (!videoElement) return;

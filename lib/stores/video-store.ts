@@ -20,7 +20,7 @@ interface VideoStore {
   setVideoUrl: (url: string) => void;
   setVideoDuration: (duration: number) => void;
   setCurrentTime: (time: number) => void;
-  setCurrentTimeSmooth: (time: number) => void; // 부드러운 업데이트용
+  setCurrentTimeSmooth: (time: number) => void; // for smooth updates
   setIsPlaying: (playing: boolean) => void;
   togglePlayPause: () => void;
   seekTo: (time: number) => void;
@@ -59,19 +59,19 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
       video: { ...state.video, currentTime },
     })),
 
-  // 부드러운 업데이트를 위한 배치 처리
+  // Batched processing for smooth updates
   setCurrentTimeSmooth: (currentTime) => {
-    // 이전 timeout이 있으면 취소
+    // Cancel previous timeout if pending
     if (smoothUpdateTimeoutId) {
       clearTimeout(smoothUpdateTimeoutId);
     }
 
-    // 즉시 업데이트
+    // Update immediately
     set((state) => ({
       video: { ...state.video, currentTime },
     }));
 
-    // 빠른 연속 업데이트를 배치 처리 (하지만 이미 즉시 업데이트됨)
+    // Batch rapid successive updates (already updated above immediately)
     smoothUpdateTimeoutId = setTimeout(() => {
       smoothUpdateTimeoutId = null;
     }, 16); // 60fps

@@ -34,7 +34,7 @@ export function VideoPlayer() {
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl overflow-hidden">
-      {/* 비디오 영역 */}
+      {/* Video area */}
       <div className="flex-1 min-h-0">
         <VideoArea
           videoRef={videoRef}
@@ -45,19 +45,19 @@ export function VideoPlayer() {
         />
       </div>
 
-      {/* 컨트롤 바 */}
+      {/* Control bar */}
       <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-800 p-4 space-y-4 border-t border-gray-200 dark:border-gray-700">
-        {/* 프로그레스 바 */}
+        {/* Progress bar */}
         <ProgressBar
           currentTime={video.currentTime}
           duration={video.duration}
           onSeek={handleSeek}
         />
 
-        {/* 컨트롤 버튼들 */}
+        {/* Control buttons */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
-            {/* 재생/일시정지 버튼 */}
+            {/* Play/Pause button */}
             <button
               onClick={togglePlay}
               className="group flex items-center justify-center w-12 h-12 rounded-full bg-white dark:bg-gray-700 shadow-md hover:shadow-lg border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
@@ -71,7 +71,7 @@ export function VideoPlayer() {
               )}
             </button>
 
-            {/* 볼륨 컨트롤 */}
+            {/* Volume control */}
             <VolumeControl
               volume={video.volume}
               onVolumeChange={handleVolumeChange}
@@ -79,7 +79,7 @@ export function VideoPlayer() {
             />
           </div>
 
-          {/* 진행률 표시 */}
+          {/* Progress percentage */}
           {video.duration > 0 && (
             <div className="text-gray-600 dark:text-gray-400 text-sm font-medium bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full">
               {progressPercentage}%

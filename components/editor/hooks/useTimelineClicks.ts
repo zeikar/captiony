@@ -21,7 +21,7 @@ export const useTimelineClicks = ({
   isDragging,
   setCurrentTime,
 }: UseTimelineClicksProps) => {
-  // 더블클릭으로 새 자막 추가 - 시간 계산 함수 분리로 성능 최적화
+  // Add new subtitle on double-click — time calculation extracted for performance
   const calculateTimeFromClick = useCallback(
     (clientX: number) => {
       const rect = timelineRef.current?.getBoundingClientRect();
@@ -42,7 +42,7 @@ export const useTimelineClicks = ({
     [timelineMode, centerX, video.currentTime, pixelsPerSecond, timelineOffset]
   );
 
-  // 타임라인 클릭 핸들러 - 공통 함수 사용으로 최적화
+  // Timeline click handler — optimized by reusing calculateTimeFromClick
   const handleTimelineClick = useCallback(
     (e: React.MouseEvent) => {
       if (isDragging) return;

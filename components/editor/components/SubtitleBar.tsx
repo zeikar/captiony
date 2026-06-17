@@ -30,7 +30,7 @@ export const SubtitleBar = React.memo<SubtitleBarProps>(
     hasOverlap = false,
     onMouseDown,
   }) => {
-    // 드래그 중이면 임시 위치 사용, 아니면 실제 위치 사용
+    // Use temporary position while dragging, otherwise use the real position
     const startTime = tempPosition
       ? tempPosition.startTime
       : subtitle.startTime;
@@ -39,35 +39,35 @@ export const SubtitleBar = React.memo<SubtitleBarProps>(
     const x = getXFromTime(startTime, timelineOffset, pixelsPerSecond);
     const width = (endTime - startTime) * pixelsPerSecond;
 
-    // 레이어에 따른 Y 위치 계산 (각 레이어는 16px씩 아래로)
+    // Y offset per layer (each layer shifts down by 16px)
     const yOffset = layerIndex * 16;
 
-    // 색상 우선순위: 선택됨 + 겹침 > 선택됨 > 겹침 > 기본
+    // Color priority: selected + overlap > selected > overlap > default
     let backgroundClass: string;
     let borderClass: string;
     let textClass: string = "text-white";
     let ringClass: string = "";
 
     if (isSelected && hasOverlap) {
-      // 선택됨 + 겹침: 밝은 주황색
+      // Selected + overlap: bright orange
       backgroundClass = "bg-orange-500 dark:bg-orange-400";
       borderClass = "border-orange-600 dark:border-orange-500";
       ringClass = "ring-2 ring-orange-400 dark:ring-orange-300";
       textClass = "text-white";
     } else if (isSelected) {
-      // 선택됨: 파란색
+      // Selected: blue
       backgroundClass = "bg-blue-500 dark:bg-blue-600";
       borderClass = "border-blue-600 dark:border-blue-700";
       ringClass = "ring-2 ring-blue-400 dark:ring-blue-400";
       textClass = "text-white";
     } else if (hasOverlap) {
-      // 겹침: 빨간색
+      // Overlap: red
       backgroundClass = "bg-red-500 dark:bg-red-600";
       borderClass = "border-red-600 dark:border-red-700";
       ringClass = "ring-2 ring-red-400 dark:ring-red-400";
       textClass = "text-white";
     } else {
-      // 기본: 보라색
+      // Default: purple
       backgroundClass = "bg-violet-500 dark:bg-violet-600";
       borderClass = "border-violet-600 dark:border-violet-700";
       textClass = "text-white";
@@ -76,8 +76,8 @@ export const SubtitleBar = React.memo<SubtitleBarProps>(
     const style = {
       left: `${x}px`,
       width: `${Math.max(20, width)}px`,
-      top: `${28 + yOffset}px`, // 기본 28px + 레이어 오프셋
-      transform: "translate3d(0, 0, 0)", // GPU 가속
+      top: `${28 + yOffset}px`, // base 28px + layer offset
+      transform: "translate3d(0, 0, 0)", // GPU acceleration
     };
 
     return (
@@ -86,10 +86,10 @@ export const SubtitleBar = React.memo<SubtitleBarProps>(
         style={style}
         onMouseDown={(e) => onMouseDown(e, subtitle)}
       >
-        {/* 텍스트 */}
+        {/* Text */}
         <span className="truncate px-1 font-medium">{subtitle.text}</span>
 
-        {/* 리사이즈 핸들 - 시작 */}
+        {/* Resize handle — start */}
         <div
           className="absolute left-0 top-0 w-2 h-full bg-transparent cursor-ew-resize hover:bg-white/30 transition-colors duration-150"
           onMouseDown={(e) => {
@@ -98,7 +98,7 @@ export const SubtitleBar = React.memo<SubtitleBarProps>(
           }}
         />
 
-        {/* 리사이즈 핸들 - 끝 */}
+        {/* Resize handle — end */}
         <div
           className="absolute right-0 top-0 w-2 h-full bg-transparent cursor-ew-resize hover:bg-white/30 transition-colors duration-150"
           onMouseDown={(e) => {

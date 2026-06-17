@@ -16,7 +16,7 @@ interface SubtitleItemProps {
   index: number;
   isSelected: boolean;
   isEditing: boolean;
-  isCurrent?: boolean; // 현재 재생 중인 자막인지
+  isCurrent?: boolean; // whether this is the currently playing subtitle
   onEdit: (subtitle: SubtitleItemType) => void;
   onSave: (id: string, text: string) => void;
   onCancel: () => void;
@@ -359,7 +359,7 @@ function SubtitleText({
             className="w-full h-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-colors text-sm"
             placeholder="Enter subtitle text..."
             onClick={(e) => e.stopPropagation()}
-            style={{ minHeight: "90px" }} // 120px → 90px로 감소
+            style={{ minHeight: "90px" }} // reduced from 120px to 90px
           />
           <div className="text-xs text-gray-400 mt-1 absolute bottom-1 right-2 bg-white dark:bg-gray-700 px-1 rounded opacity-75">
             Cmd+Enter: save, Esc: cancel

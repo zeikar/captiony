@@ -24,16 +24,16 @@ export function ProgressBar({
         {formatTime(currentTime)}
       </span>
       <div className="flex-1 relative group">
-        {/* 백그라운드 트랙 */}
+        {/* Background track */}
         <div className="w-full h-2 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
 
-        {/* 진행된 부분 */}
+        {/* Filled portion */}
         <div
           className="absolute top-0 left-0 h-2 bg-blue-600 dark:bg-blue-400 rounded-full"
           style={{ width: `${progressPercentage}%` }}
         ></div>
 
-        {/* 실제 input (투명) */}
+        {/* Transparent range input overlay */}
         <input
           type="range"
           min={0}
@@ -44,7 +44,7 @@ export function ProgressBar({
           className="absolute top-0 left-0 w-full h-2 opacity-0 cursor-pointer focus:outline-none"
         />
 
-        {/* 썸 (호버 시에만 표시) */}
+        {/* Thumb (visible on hover only) */}
         <div
           className="absolute top-1/2 -translate-y-1/2 h-4 w-4 bg-blue-600 dark:bg-blue-400 rounded-full shadow-lg border-2 border-white dark:border-gray-800 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
           style={{

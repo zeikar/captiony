@@ -32,16 +32,16 @@ export function VolumeControl({
         )}
       </button>
       <div className="relative group">
-        {/* 백그라운드 트랙 */}
+        {/* Background track */}
         <div className="w-20 h-2 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
 
-        {/* 볼륨 레벨 */}
+        {/* Volume level fill */}
         <div
           className="absolute top-0 left-0 h-2 bg-blue-600 dark:bg-blue-400 rounded-full"
           style={{ width: `${volumePercentage}%` }}
         ></div>
 
-        {/* 실제 input (투명) */}
+        {/* Transparent range input overlay */}
         <input
           type="range"
           min={0}
@@ -53,7 +53,7 @@ export function VolumeControl({
           aria-label="Volume"
         />
 
-        {/* 썸 (호버 시에만 표시) */}
+        {/* Thumb (visible on hover only) */}
         <div
           className="absolute top-1/2 -translate-y-1/2 h-4 w-4 bg-blue-600 dark:bg-blue-400 rounded-full shadow-lg border-2 border-white dark:border-gray-800 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
           style={{

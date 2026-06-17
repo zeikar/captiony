@@ -19,19 +19,19 @@ export function useKeyboardShortcuts() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 입력 필드에서는 무시 (단, 일부 키는 허용)
+      // Ignore key events from input fields, except for some keys
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
       ) {
-        // 입력 필드에서도 Escape는 허용
+        // Allow Escape even inside input fields
         if (e.key !== "Escape") {
           return;
         }
       }
 
       switch (e.key) {
-        case " ": // 스페이스바 - 재생/일시정지
+        case " ": // Spacebar — play/pause
           e.preventDefault();
           togglePlayPause();
           break;
@@ -46,7 +46,7 @@ export function useKeyboardShortcuts() {
           selectSubtitle(null);
           break;
         case "ArrowUp":
-          // 이전 자막 선택
+          // Select previous subtitle
           if (subtitles.length > 0) {
             const sortedSubtitles = [...subtitles].sort(
               (a, b) => a.startTime - b.startTime
@@ -69,7 +69,7 @@ export function useKeyboardShortcuts() {
           }
           break;
         case "ArrowDown":
-          // 다음 자막 선택
+          // Select next subtitle
           if (subtitles.length > 0) {
             const sortedSubtitles = [...subtitles].sort(
               (a, b) => a.startTime - b.startTime
@@ -93,7 +93,7 @@ export function useKeyboardShortcuts() {
           break;
         case "ArrowLeft":
           if (e.shiftKey && selectedSubtitleId) {
-            // Shift + 왼쪽 화살표: 자막을 왼쪽으로 이동 (시간 단축)
+            // Shift + Left: shift subtitle earlier in time
             const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
             if (subtitle) {
               const duration = subtitle.endTime - subtitle.startTime;
@@ -105,7 +105,7 @@ export function useKeyboardShortcuts() {
             }
             e.preventDefault();
           } else {
-            // 왼쪽 화살표: 5초 뒤로
+            // Left arrow: seek back 5 seconds
             const newTime = Math.max(0, video.currentTime - 5);
             seekTo(newTime);
             e.preventDefault();
@@ -113,7 +113,7 @@ export function useKeyboardShortcuts() {
           break;
         case "ArrowRight":
           if (e.shiftKey && selectedSubtitleId) {
-            // Shift + 오른쪽 화살표: 자막을 오른쪽으로 이동 (시간 증가)
+            // Shift + Right: shift subtitle later in time
             const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
             if (subtitle) {
               const duration = subtitle.endTime - subtitle.startTime;
@@ -125,7 +125,7 @@ export function useKeyboardShortcuts() {
             }
             e.preventDefault();
           } else {
-            // 오른쪽 화살표: 5초 앞으로
+            // Right arrow: seek forward 5 seconds
             const maxTime = video.duration || video.currentTime + 5;
             const newTime = Math.min(maxTime, video.currentTime + 5);
             seekTo(newTime);
@@ -134,7 +134,7 @@ export function useKeyboardShortcuts() {
           break;
         case "Enter":
           if (e.metaKey || e.ctrlKey) {
-            // Cmd/Ctrl + Enter: 새 자막 추가
+            // Cmd/Ctrl + Enter: add new subtitle
             const currentTime = video.currentTime;
             const newSubtitle = {
               text: "",
@@ -144,19 +144,19 @@ export function useKeyboardShortcuts() {
             const newSubtitleId = addSubtitle(newSubtitle);
             if (newSubtitleId) {
               selectSubtitle(newSubtitleId);
-              // 새로 생성된 자막을 자동으로 편집 모드로 설정
+              // Automatically enter edit mode for the newly created subtitle
               setTimeout(() => setEditingSubtitle(newSubtitleId), 0);
             }
             e.preventDefault();
           } else if (selectedSubtitleId && !e.shiftKey && !e.altKey) {
-            // Enter: 선택된 자막을 편집 모드로 설정
+            // Enter: open the selected subtitle in edit mode
             setEditingSubtitle(selectedSubtitleId);
             e.preventDefault();
           }
           break;
         case "n":
         case "N":
-          // N 키: 현재 재생 위치에 새 자막 추가
+          // N key: add new subtitle at the current playback position
           if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
             const currentTime = video.currentTime;
             const newSubtitle = {
@@ -167,7 +167,7 @@ export function useKeyboardShortcuts() {
             const newSubtitleId = addSubtitle(newSubtitle);
             if (newSubtitleId) {
               selectSubtitle(newSubtitleId);
-              // 새로 생성된 자막을 자동으로 편집 모드로 설정
+              // Automatically enter edit mode for the newly created subtitle
               setTimeout(() => setEditingSubtitle(newSubtitleId), 0);
             }
             e.preventDefault();
@@ -175,7 +175,7 @@ export function useKeyboardShortcuts() {
           break;
         case "i":
         case "I":
-          // I 키: In point - 선택된 자막의 시작 시간을 현재 재생 위치로 설정
+          // I key: In point — set selected subtitle's start time to current playback position
           if (
             !e.metaKey &&
             !e.ctrlKey &&
@@ -186,7 +186,7 @@ export function useKeyboardShortcuts() {
             const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
             if (subtitle) {
               const currentTime = video.currentTime;
-              // 끝 시간보다 늦지 않도록 제한
+              // Clamp to not exceed end time
               const newStartTime = Math.min(
                 currentTime,
                 subtitle.endTime - 0.1
@@ -200,7 +200,7 @@ export function useKeyboardShortcuts() {
           break;
         case "o":
         case "O":
-          // O 키: Out point - 선택된 자막의 끝 시간을 현재 재생 위치로 설정
+          // O key: Out point — set selected subtitle's end time to current playback position
           if (
             !e.metaKey &&
             !e.ctrlKey &&
@@ -211,7 +211,7 @@ export function useKeyboardShortcuts() {
             const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
             if (subtitle) {
               const currentTime = video.currentTime;
-              // 시작 시간보다 빠르지 않도록 제한
+              // Clamp to not precede start time
               const newEndTime = Math.max(
                 currentTime,
                 subtitle.startTime + 0.1
@@ -225,7 +225,7 @@ export function useKeyboardShortcuts() {
           break;
         case "s":
         case "S":
-          // S 키: 자막 분할 - 현재 재생 위치에서 선택된 자막을 두 개로 분할
+          // S key: split selected subtitle at the current playback position
           if (
             !e.metaKey &&
             !e.ctrlKey &&
@@ -236,17 +236,17 @@ export function useKeyboardShortcuts() {
             const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
             if (subtitle) {
               const currentTime = video.currentTime;
-              // 현재 시간이 자막 범위 내에 있을 때만 분할
+              // Only split when current time falls within the subtitle's range
               if (
                 currentTime > subtitle.startTime &&
                 currentTime < subtitle.endTime
               ) {
-                // 기존 자막의 끝 시간을 현재 시간으로 변경
+                // Trim the existing subtitle's end to the current time
                 updateSubtitle(selectedSubtitleId, {
                   endTime: currentTime,
                 });
 
-                // 새로운 자막 추가
+                // Add the new subtitle for the second half
                 const newSubtitle = {
                   text: subtitle.text,
                   startTime: currentTime,
@@ -263,7 +263,7 @@ export function useKeyboardShortcuts() {
           break;
         case "m":
         case "M":
-          // M 키: 현재 재생 위치에서 가장 가까운 자막으로 이동 및 선택
+          // M key: navigate to and select the subtitle nearest to the current playback position
           if (
             !e.metaKey &&
             !e.ctrlKey &&
@@ -275,7 +275,7 @@ export function useKeyboardShortcuts() {
             let closestSubtitle = subtitles[0];
             let minDistance = Math.abs(closestSubtitle.startTime - currentTime);
 
-            // 가장 가까운 자막 찾기 (시작 시간 기준)
+            // Find the closest subtitle by start time
             subtitles.forEach((subtitle) => {
               const distance = Math.abs(subtitle.startTime - currentTime);
               if (distance < minDistance) {
@@ -291,7 +291,7 @@ export function useKeyboardShortcuts() {
           break;
         case "j":
         case "J":
-          // J 키: 1초 뒤로 (더 정밀한 탐색)
+          // J key: seek back 1 second (finer control)
           if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
             const newTime = Math.max(0, video.currentTime - 1);
             seekTo(newTime);
@@ -300,7 +300,7 @@ export function useKeyboardShortcuts() {
           break;
         case "k":
         case "K":
-          // K 키: 재생/일시정지 (스페이스바 대안)
+          // K key: play/pause (alternative to spacebar)
           if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
             togglePlayPause();
             e.preventDefault();
@@ -308,7 +308,7 @@ export function useKeyboardShortcuts() {
           break;
         case "l":
         case "L":
-          // L 키: 1초 앞으로 (더 정밀한 탐색)
+          // L key: seek forward 1 second (finer control)
           if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
             const maxTime = video.duration || video.currentTime + 1;
             const newTime = Math.min(maxTime, video.currentTime + 1);

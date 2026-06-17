@@ -34,7 +34,7 @@ export function ThemeProvider({
   const [actualTheme, setActualTheme] = useState<"dark" | "light">("light");
 
   useEffect(() => {
-    // 저장된 테마 불러오기
+    // Load persisted theme
     const storedTheme = localStorage.getItem(storageKey) as Theme;
     if (storedTheme) {
       setTheme(storedTheme);

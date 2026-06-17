@@ -1,5 +1,5 @@
 /**
- * 초를 MM:SS.mmm 형식으로 포맷팅 (밀리세컨드 포함)
+ * Formats seconds as MM:SS.mmm (includes milliseconds).
  */
 export function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -9,7 +9,7 @@ export function formatTime(seconds: number): string {
 }
 
 /**
- * 진행률 계산 (백분율)
+ * Calculates playback progress as a percentage.
  */
 export function calculateProgress(
   currentTime: number,
@@ -20,7 +20,7 @@ export function calculateProgress(
 }
 
 /**
- * 범위 내로 값 제한
+ * Clamps a value within the given range.
  */
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);

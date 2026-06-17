@@ -104,7 +104,7 @@ export const useSubtitleStore = create<SubtitleStore>()(
 
   updateSubtitle: (id, updates) =>
     set((state) => {
-      // 실제 변경사항이 있는지 체크하여 불필요한 업데이트 방지
+      // Check for actual changes to avoid unnecessary updates
       const currentSubtitle = state.subtitles.find((sub) => sub.id === id);
       if (!currentSubtitle) return state;
 
@@ -201,7 +201,7 @@ export const useSubtitleStore = create<SubtitleStore>()(
 }),
     {
       name: "captiony-subtitles",
-      // 자막 데이터만 저장하고, UI 상태(선택/편집 중인 항목, 타임라인)는 저장하지 않음
+      // Persist only subtitle data; UI state (selection, editing, timeline) is not persisted
       partialize: (state) => ({ subtitles: state.subtitles }),
     }
   )

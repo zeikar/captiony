@@ -20,13 +20,13 @@ export const usePlayheadStyle = ({
 }: UsePlayheadStyleProps) => {
   return useMemo(() => {
     if (timelineMode === "centered") {
-      // Centered 모드에서는 플레이헤드가 중앙에 고정
+      // In centered mode the playhead is fixed at the center
       return {
         transform: `translate3d(${centerX}px, 0, 0)`,
         visibility: "visible" as "visible" | "hidden",
       };
     } else {
-      // Free 모드에서는 기존 방식
+      // In free mode use the standard position calculation
       const x = getXFromTime(
         video.currentTime,
         effectiveTimelineOffset,

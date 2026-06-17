@@ -15,7 +15,7 @@ export function useTimelineWheel(
   const { setTimelineScale, setTimelineOffset } = useSubtitleStore();
   const { video, setCurrentTime } = useVideoStore();
 
-  // 성능 최적화를 위한 throttling
+  // Throttling for performance
   const lastUpdateRef = useRef<number>(0);
   const rafIdRef = useRef<number | null>(null);
 
@@ -27,14 +27,14 @@ export function useTimelineWheel(
       e.preventDefault();
       e.stopPropagation();
 
-      // 성능 최적화: 16ms throttling (60fps)
+      // 16ms throttle for 60fps performance
       const now = performance.now();
       if (now - lastUpdateRef.current < 16) {
         return;
       }
       lastUpdateRef.current = now;
 
-      // RAF 중복 요청 방지
+      // Cancel any pending RAF before scheduling a new one
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current);
       }
@@ -45,7 +45,7 @@ export function useTimelineWheel(
           const rect = timelineElement.getBoundingClientRect();
           const mouseX = e.clientX - rect.left;
 
-          // 새로운 좌표 체계에 맞게 마우스 위치의 시간 계산
+          // Compute time at mouse position for the new coordinate system
           let mouseTime: number;
           if (timelineMode === "centered") {
             const centerX = rect.width / 2;
@@ -62,21 +62,21 @@ export function useTimelineWheel(
           );
 
           if (timelineMode === "free") {
-            // Free 모드에서만 offset 조정
+            // Adjust offset only in free mode
             const newOffset = mouseTime - mouseX / (50 * newScale);
             setTimelineOffset(Math.max(0, newOffset));
           }
 
           setTimelineScale(newScale);
         } else {
-          // Scroll - 부드러운 스크롤 로직은 그대로 유지
+          // Scroll — smooth scroll logic preserved as-is
           if (timelineMode === "centered") {
-            // Centered 모드에서는 스크롤을 동영상 시간 변경으로 처리
+            // In centered mode, translate scroll into video time changes
             const rect = timelineElement.getBoundingClientRect();
             let deltaY = e.deltaY;
             let deltaX = e.deltaX;
 
-            // 델타 모드에 따른 정규화
+            // Normalize delta based on deltaMode
             if (e.deltaMode === 1) {
               deltaY *= 33;
               deltaX *= 33;
@@ -85,14 +85,14 @@ export function useTimelineWheel(
               deltaX *= rect.width;
             }
 
-            // 부드러운 스크롤을 위한 세밀한 속도 조정
-            const baseScrollSpeed = 0.03; // 기본 속도를 더 줄임 (0.05 → 0.03)
-            const zoomAdjustment = 1 / timelineScale; // 줌 레벨에 반비례하여 속도 조정
+            // Fine-grained speed adjustment for smooth scrolling
+            const baseScrollSpeed = 0.03; // reduced from 0.05 to 0.03
+            const zoomAdjustment = 1 / timelineScale; // inversely proportional to zoom level
 
             const isDeltaXDominant = Math.abs(deltaX) > Math.abs(deltaY);
             const primaryDelta = isDeltaXDominant ? deltaX : deltaY;
 
-            // 델타 값에 비례하는 부드러운 속도 계산
+            // Smooth speed proportional to delta magnitude
             const normalizedDelta =
               Math.sign(primaryDelta) * Math.min(Math.abs(primaryDelta), 200);
             const scrollTime =
@@ -104,12 +104,12 @@ export function useTimelineWheel(
             );
             setCurrentTime(newTime);
           } else {
-            // Free 모드에서는 타임라인 오프셋 변경
+            // In free mode, change the timeline offset
             const rect = timelineElement.getBoundingClientRect();
             let deltaY = e.deltaY;
             let deltaX = e.deltaX;
 
-            // 델타 모드에 따른 정규화
+            // Normalize delta based on deltaMode
             if (e.deltaMode === 1) {
               deltaY *= 33;
               deltaX *= 33;
@@ -118,14 +118,14 @@ export function useTimelineWheel(
               deltaX *= rect.width;
             }
 
-            // 부드러운 스크롤을 위한 세밀한 속도 조정
-            const baseScrollSpeed = 0.03; // 기본 속도를 더 줄임
-            const zoomAdjustment = 1 / timelineScale; // 줌 레벨에 반비례하여 속도 조정
+            // Fine-grained speed adjustment for smooth scrolling
+            const baseScrollSpeed = 0.03; // reduced base speed
+            const zoomAdjustment = 1 / timelineScale; // inversely proportional to zoom level
 
             const isDeltaXDominant = Math.abs(deltaX) > Math.abs(deltaY);
             const primaryDelta = isDeltaXDominant ? deltaX : deltaY;
 
-            // 델타 값에 비례하는 부드러운 속도 계산
+            // Smooth speed proportional to delta magnitude
             const normalizedDelta =
               Math.sign(primaryDelta) * Math.min(Math.abs(primaryDelta), 200);
             const scrollTime =

@@ -3,7 +3,7 @@
 import React, { memo } from "react";
 import { formatTime } from "../utils/timelineUtils";
 
-// 시간 레이블 컴포넌트
+// Time label component
 const TimelineLabel = memo(({ x, label }: { x: number; label: string }) => (
   <div
     className="absolute text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap font-mono bg-white/90 dark:bg-gray-900/90 px-1.5 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm"
@@ -35,7 +35,7 @@ interface TimelineGridProps {
   timelineScale: number;
   visibleStartTime: number;
   visibleEndTime: number;
-  videoDuration: number; // 동영상 전체 길이
+  videoDuration: number; // total video duration
 }
 
 export const TimelineGrid = memo<TimelineGridProps>(
@@ -49,20 +49,20 @@ export const TimelineGrid = memo<TimelineGridProps>(
     visibleEndTime,
     videoDuration,
   }) => {
-    // 보이는 범위만 렌더링하기 위한 계산
+    // Calculate range to render only the visible portion
     const visibleDuration = visibleEndTime - visibleStartTime;
-    const bufferTime = Math.max(10, visibleDuration * 0.5); // 50% 오버스캔
+    const bufferTime = Math.max(10, visibleDuration * 0.5); // 50% overscan
     const startTime = Math.max(0, visibleStartTime - bufferTime);
     const endTime = Math.min(videoDuration, visibleEndTime + bufferTime);
     const renderDuration = endTime - startTime;
     const renderWidth = renderDuration * pixelsPerSecond;
     const offsetX = startTime * pixelsPerSecond;
 
-    // 보이는 영역 기반 CSS 그리드 패턴 생성
+    // Generate CSS grid pattern for the visible area
     const generateVisibleGridPattern = () => {
       if (renderDuration <= 0) return "";
 
-      // 줌 레벨에 따른 간격 결정
+      // Choose interval based on zoom level
       const getIntervals = (scale: number) => {
         if (scale < 0.3) return { major: 30, minor: 10 };
         if (scale < 0.6) return { major: 10, minor: 5 };
@@ -76,7 +76,7 @@ export const TimelineGrid = memo<TimelineGridProps>(
       const majorSpacing = intervals.major * pixelsPerSecond;
       const minorSpacing = intervals.minor * pixelsPerSecond;
 
-      // 시작 시간에 따른 오프셋 계산 (패턴이 올바른 위치에서 시작하도록)
+      // Compute offset based on start time so the pattern aligns correctly
       const majorOffset = (startTime % intervals.major) * pixelsPerSecond;
       const minorOffset = (startTime % intervals.minor) * pixelsPerSecond;
 
@@ -102,7 +102,7 @@ export const TimelineGrid = memo<TimelineGridProps>(
       return majorPattern;
     };
 
-    // 전체 높이 그리드 라인 패턴
+    // Full-height grid line pattern
     const generateVisibleFullHeightGridPattern = () => {
       if (renderDuration <= 0) return "";
 
@@ -130,7 +130,7 @@ export const TimelineGrid = memo<TimelineGridProps>(
 
     return (
       <div className="relative">
-        {/* 타임라인 헤더 배경 - 보이는 영역만 */}
+        {/* Timeline header background — visible area only */}
         <div
           className="absolute top-0 h-8 border-b border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900"
           style={{
@@ -139,7 +139,7 @@ export const TimelineGrid = memo<TimelineGridProps>(
             width: `${renderWidth}px`,
           }}
         >
-          {/* CSS 기반 눈금 패턴 */}
+          {/* CSS-based tick pattern */}
           <div
             className="absolute top-0 left-0 h-8"
             style={{
@@ -148,7 +148,7 @@ export const TimelineGrid = memo<TimelineGridProps>(
             }}
           />
 
-          {/* 시간 레이블들 */}
+          {/* Time labels */}
           {timeMarkers
             .filter(
               (marker) =>
@@ -166,7 +166,7 @@ export const TimelineGrid = memo<TimelineGridProps>(
             ))}
         </div>
 
-        {/* 전체 높이 그리드 라인 - 보이는 영역만 */}
+        {/* Full-height grid lines — visible area only */}
         <div
           className="absolute top-0 pointer-events-none z-0"
           style={{

@@ -43,7 +43,7 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
           transform: subtitleContainerTransform,
         }}
       >
-        {/* 레이어 구분선 - 레이어가 2개 이상일 때만 표시 */}
+        {/* Layer separators — shown only when there are 2 or more layers */}
         {visibleSubtitleLayers.length > 1 &&
           visibleSubtitleLayers.map((_, layerIndex) => (
             <div
@@ -55,10 +55,10 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
 
         {visibleSubtitleLayers.map((layer, layerIndex) =>
           layer.map((subtitle) => {
-            // 자막이 0초 미만에서 시작하거나 끝나면 렌더링하지 않음
+            // Skip subtitles that start or end before 0s
             if (subtitle.endTime < 0) return null;
 
-            // 드래그 중인 자막의 임시 위치 확인
+            // Check for temporary drag position
             const tempPos =
               tempSubtitlePosition && tempSubtitlePosition.id === subtitle.id
                 ? {
@@ -67,13 +67,13 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
                   }
                 : null;
 
-            // 겹침 확인 최적화 - 필요할 때만 계산
+            // Overlap check — computed only when necessary
             const currentPosition = tempPos
               ? { ...subtitle, ...tempPos }
               : subtitle;
             let hasOverlap = false;
 
-            // 드래그 중이거나 선택된 자막만 겹침 검사 (성능 최적화)
+            // Only check overlap for dragged or selected subtitles (performance optimization)
             if (subtitle.id === selectedSubtitleId || tempPos) {
               const overlappingSubtitles = findOverlappingSubtitles(
                 overlapCandidates,
@@ -86,7 +86,7 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
               <SubtitleBar
                 key={subtitle.id}
                 subtitle={subtitle}
-                timelineOffset={0} // 항상 0으로 고정 (컨테이너가 이동하므로)
+                timelineOffset={0} // always 0 — the container itself is translated
                 pixelsPerSecond={pixelsPerSecond}
                 isSelected={subtitle.id === selectedSubtitleId}
                 tempPosition={tempPos}

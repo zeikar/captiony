@@ -25,10 +25,10 @@ export const TimelineDimmingOverlay = memo<TimelineDimmingOverlayProps>(
     const renderVideoDurationDim = () => {
       if (!video.duration) return null;
 
-      // 고정 좌표계에서 동영상 끝 위치 계산
+      // Compute video end position in fixed coordinates
       const videoDurationX = video.duration * pixelsPerSecond;
 
-      // 현재 보이는 영역에서 동영상 끝 위치 계산
+      // Compute video end position in visible coordinates
       let visibleVideoDurationX: number;
       if (timelineMode === "centered") {
         visibleVideoDurationX =
@@ -56,7 +56,7 @@ export const TimelineDimmingOverlay = memo<TimelineDimmingOverlayProps>(
     };
 
     const renderZeroDim = () => {
-      // 현재 보이는 영역에서 0초 위치 계산
+      // Compute the 0s position in visible coordinates
       let visibleZeroX: number;
       if (timelineMode === "centered") {
         visibleZeroX = -video.currentTime * pixelsPerSecond + centerX;
@@ -83,10 +83,10 @@ export const TimelineDimmingOverlay = memo<TimelineDimmingOverlayProps>(
 
     return (
       <>
-        {/* 동영상 길이를 넘어가는 부분 딤드 처리 */}
+        {/* Dim the region beyond the video's end */}
         {renderVideoDurationDim()}
 
-        {/* 0초 아래 부분 딤드 처리 */}
+        {/* Dim the region before 0s */}
         {renderZeroDim()}
       </>
     );

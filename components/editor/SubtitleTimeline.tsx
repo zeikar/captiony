@@ -39,7 +39,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
 
   const { video, setCurrentTime } = useVideoStore();
 
-  // Timeline width 감지를 위한 ResizeObserver - throttled로 성능 최적화
+  // ResizeObserver to detect timeline width — throttled for performance
   useEffect(() => {
     if (!timelineRef.current) return;
 
@@ -58,7 +58,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(timelineRef.current);
 
-    // 초기 값 설정
+    // Set initial value
     setTimelineWidth(timelineRef.current.clientWidth);
 
     return () => {
@@ -67,7 +67,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
     };
   }, []);
 
-  // Constants - 메모이제이션으로 재계산 방지
+  // Constants — memoized to avoid unnecessary recalculation
   const constants = useMemo(() => {
     const basePixelsPerSecond = 50;
     const pixelsPerSecond = basePixelsPerSecond * timelineScale;
@@ -103,10 +103,10 @@ export const SubtitleTimeline: React.FC = memo(() => {
     timelineMode
   );
 
-  // effectiveTimelineOffset 계산
+  // Compute effectiveTimelineOffset
   const effectiveTimelineOffset = useMemo(() => {
     if (timelineMode === "centered") {
-      // Centered 모드에서는 현재 시간을 중앙에 위치시키기 위해 offset 계산
+      // In centered mode, compute offset so that the current time is centered
       return video.currentTime - centerX / pixelsPerSecond;
     }
     return timelineOffset;
@@ -118,7 +118,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
     timelineOffset,
   ]);
 
-  // 시간 눈금 생성 (훅으로 분리)
+  // Generate time markers (extracted to hook)
   const { timeMarkers, visibleStartTime, visibleEndTime } = useTimelineMarkers({
     timelineWidth,
     timelineMode,
@@ -128,7 +128,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
     timelineScale,
   });
 
-  // 플레이헤드 스타일 (훅으로 분리)
+  // Playhead style (extracted to hook)
   const playheadStyleHook = usePlayheadStyle({
     timelineMode,
     centerX,
@@ -138,7 +138,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
     timelineWidth,
   });
 
-  // 타임라인 클릭/더블클릭 핸들러 (훅으로 분리)
+  // Timeline click/double-click handler (extracted to hook)
   const { handleTimelineClick } = useTimelineClicks({
     timelineRef: timelineRef as React.RefObject<HTMLDivElement>,
     timelineMode,
@@ -150,11 +150,11 @@ export const SubtitleTimeline: React.FC = memo(() => {
     setCurrentTime,
   });
 
-  // 모드 변경 핸들러 (free 모드로 바뀔 때 현재 재생 시간으로 이동)
+  // Mode change handler (sync offset to current time when switching to free mode)
   const handleModeChange = useCallback(
     (newMode: "free" | "centered") => {
       if (newMode === "free" && timelineMode === "centered") {
-        // centered에서 free로 바뀔 때, 현재 재생 시간이 중앙에 오도록 offset 설정
+        // When switching from centered to free, set offset so current time stays centered
         const centerX = timelineWidth / 2;
         const newOffset = Math.max(
           0,
@@ -174,20 +174,20 @@ export const SubtitleTimeline: React.FC = memo(() => {
     ]
   );
 
-  // 자막을 레이어별로 배치
+  // Arrange subtitles into layers
   const subtitleLayers = useMemo(() => {
     return arrangeSubtitlesInLayers(subtitles);
   }, [subtitles]);
 
-  // 현재 보이는 시간 범위 계산 (가상 리스트 윈도우)
+  // Compute the currently visible time range (virtual list window)
   const visibleTimeRange = useMemo(() => {
     if (timelineWidth === 0 || pixelsPerSecond === 0) {
       return { start: 0, end: 0, overscan: 0 };
     }
 
-    // 화면에 보이는 시간 길이(초)
+    // Visible duration in seconds
     const visibleSeconds = timelineWidth / pixelsPerSecond;
-    // 과도한 재렌더 방지를 위한 오버스캔 (보이는 구간의 25% 또는 최소 2초)
+    // Overscan to prevent excessive re-renders (25% of visible range, minimum 2s)
     const overscan = Math.max(2, visibleSeconds * 0.25);
 
     if (timelineMode === "centered") {
@@ -208,9 +208,9 @@ export const SubtitleTimeline: React.FC = memo(() => {
     timelineOffset,
   ]);
 
-  // 보이는 자막만 필터링 (간단한 가상 리스트)
+  // Filter to only visible subtitles (simple virtual list)
   const visibleSubtitleLayers = useMemo(() => {
-    // dragging 중인 자막은 항상 렌더링 유지
+    // Always keep the currently dragged subtitle in the render list
     const draggingId = tempSubtitlePosition?.id;
 
     const intersects = (start: number, end: number) => {
@@ -219,13 +219,13 @@ export const SubtitleTimeline: React.FC = memo(() => {
 
     return subtitleLayers.map((layer) =>
       layer.filter((subtitle) => {
-        // 음수로 끝나는 자막은 스킵 (기존 로직 유지)
+        // Skip subtitles that end before 0 (preserve existing logic)
         if (subtitle.endTime < 0) return false;
 
-        // 드래그 중인 자막은 무조건 유지
+        // Always keep the dragged subtitle
         if (draggingId && subtitle.id === draggingId) return true;
 
-        // 렌더 가시성 판단
+        // Render visibility check
         const startTime = subtitle.startTime;
         const endTime = subtitle.endTime;
         return intersects(startTime, endTime);
@@ -238,7 +238,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
     tempSubtitlePosition?.id,
   ]);
 
-  // 겹침 체크용 후보 풀: 보이는 범위(오버스캔 포함)에 교차하는 자막만
+  // Overlap-check candidate pool: only subtitles intersecting the visible range (with overscan)
   const overlapCandidates = useMemo(() => {
     const result = subtitles.filter(
       (s) =>
@@ -248,14 +248,14 @@ export const SubtitleTimeline: React.FC = memo(() => {
     return result;
   }, [subtitles, visibleTimeRange.start, visibleTimeRange.end]);
 
-  // 자막 컨테이너 이동을 위한 transform 계산 (성능 최적화)
+  // Compute subtitle container transform for repositioning (performance optimized)
   const subtitleContainerTransform = useMemo(() => {
     if (timelineMode === "centered") {
-      // Centered 모드에서는 컨테이너 전체를 이동시켜 자막들을 올바른 위치에 표시
+      // In centered mode, shift the entire container so subtitles render at the correct position
       const translateX = -video.currentTime * pixelsPerSecond + centerX;
       return `translate3d(${translateX}px, 0, 0)`;
     }
-    // Free 모드에서는 timelineOffset 기준으로 이동
+    // In free mode, shift based on timelineOffset
     const translateX = -timelineOffset * pixelsPerSecond;
     return `translate3d(${translateX}px, 0, 0)`;
   }, [
@@ -266,7 +266,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
     timelineOffset,
   ]);
 
-  // 자막 마우스다운 핸들러
+  // Subtitle mousedown handler
   const handleMouseDown = useCallback(
     (e: React.MouseEvent, subtitle: any, dragType?: "start" | "end") => {
       handleSubtitleMouseDown(e, subtitle.id, dragType);
@@ -276,7 +276,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl overflow-hidden">
-      {/* 컨트롤 바 */}
+      {/* Control bar */}
       <div className="flex-shrink-0">
         <TimelineControls
           timelineScale={timelineScale}
@@ -295,14 +295,14 @@ export const SubtitleTimeline: React.FC = memo(() => {
         />
       </div>
 
-      {/* 타임라인 */}
+      {/* Timeline */}
       <div className="flex-1 overflow-hidden">
         <div
           ref={timelineRef}
           className="relative bg-gray-50 dark:bg-gray-800 cursor-pointer select-none h-full"
           onClick={handleTimelineClick}
         >
-          {/* 시간 눈금 */}
+          {/* Time grid */}
           <TimelineGrid
             timeMarkers={timeMarkers}
             dynamicTimelineHeight={dynamicTimelineHeight}
@@ -314,7 +314,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
             videoDuration={video.duration || 0}
           />
 
-          {/* 자막 바들 */}
+          {/* Subtitle bars */}
           <SubtitleLayer
             visibleSubtitleLayers={visibleSubtitleLayers}
             selectedSubtitleId={selectedSubtitleId}
@@ -327,20 +327,20 @@ export const SubtitleTimeline: React.FC = memo(() => {
             findOverlappingSubtitles={findOverlappingSubtitles}
           />
 
-          {/* 플레이헤드 */}
+          {/* Playhead */}
           <TimelinePlayhead
             dynamicTimelineHeight={dynamicTimelineHeight}
             playheadStyle={playheadStyleHook}
           />
 
-          {/* Centered 모드에서 중앙 참조선 */}
+          {/* Center reference line in centered mode */}
           <TimelineCenterReference
             timelineMode={timelineMode}
             centerX={centerX}
             dynamicTimelineHeight={dynamicTimelineHeight}
           />
 
-          {/* 딤드 오버레이 */}
+          {/* Dimming overlay */}
           <TimelineDimmingOverlay
             timelineMode={timelineMode}
             video={video}

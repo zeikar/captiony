@@ -66,7 +66,7 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
   const handleMouseMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
   const handleMouseUpRef = useRef<(() => void) | null>(null);
   const lastDragUpdateRef = useRef<number>(0);
-  // 실제 드래그가 발생했는지 여부 (클릭과 구분)
+  // Tracks whether an actual drag occurred (to distinguish from a click)
   const didDragRef = useRef<boolean>(false);
 
   const handleSubtitleMouseDown = useCallback(
@@ -89,7 +89,7 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
         tempSubtitlePosition: null,
       });
 
-      // 새 드래그 시작 시 초기화
+      // Reset at the start of each new drag
       didDragRef.current = false;
 
       selectSubtitle(subtitleId);
@@ -123,7 +123,7 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
         resizeHandle
       );
 
-      // 드래그 중에는 tempSubtitlePosition만 업데이트 (실제 store는 mouseUp에서 업데이트)
+      // During drag only update tempSubtitlePosition; store is updated on mouseUp
       setDragState((prev) => ({
         ...prev,
         tempSubtitlePosition: {
@@ -133,7 +133,7 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
         },
       }));
 
-      // 실제로 커서가 움직였음을 표시 (소량의 이동은 클릭으로 간주할 수 있으므로 임계값 적용)
+      // Mark as dragged once movement exceeds the click threshold
       if (!didDragRef.current && Math.abs(deltaX) >= DRAG_CLICK_THRESHOLD_PX) {
         didDragRef.current = true;
       }
@@ -151,8 +151,8 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
       });
     }
 
-    // 드래그 직후 발생하는 click 이벤트가 타임라인으로 전파되어
-    // 현재 시간이 이동하는 것을 방지하기 위해 한 번만 캡처 단계에서 차단
+    // Suppress the click event fired immediately after a drag so it does not
+    // propagate to the timeline and accidentally move the current time
     if (didDragRef.current) {
       const suppressNextClick = (e: MouseEvent) => {
         e.stopPropagation();
@@ -175,7 +175,7 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
     didDragRef.current = false;
   }, [dragState, updateSubtitle]);
 
-  // 이벤트 리스너 등록
+  // Register event listeners
   handleMouseMoveRef.current = handleMouseMove;
   handleMouseUpRef.current = handleMouseUp;
 

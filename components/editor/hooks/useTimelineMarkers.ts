@@ -34,26 +34,26 @@ export const useTimelineMarkers = ({
   timelineScale,
 }: UseTimelineMarkersProps): UseTimelineMarkersResult => {
   return useMemo(() => {
-    // timelineWidth가 0이면 빈 배열 반환
+    // Return empty if timelineWidth is 0
     if (timelineWidth === 0)
       return { timeMarkers: [], visibleStartTime: 0, visibleEndTime: 0 };
 
-    // 현재 표시되는 시간 범위 계산
+    // Compute the currently visible time range
     let visibleStartTime: number;
     let visibleEndTime: number;
 
     if (timelineMode === "centered") {
-      // Centered 모드에서는 현재 시간 기준으로 좌우 표시 범위 계산
+      // In centered mode, compute the visible range around the current time
       const halfVisible = timelineWidth / (2 * pixelsPerSecond);
       visibleStartTime = Math.max(0, video.currentTime - halfVisible);
       visibleEndTime = video.currentTime + halfVisible;
     } else {
-      // Free 모드에서는 timelineOffset 기준
+      // In free mode, compute from timelineOffset
       visibleStartTime = Math.max(0, timelineOffset);
       visibleEndTime = timelineOffset + timelineWidth / pixelsPerSecond;
     }
 
-    // 줌 레벨에 따른 레이블 표시 간격 결정
+    // Determine label spacing based on zoom level
     const getIntervals = (scale: number) => {
       if (scale < 0.3) return { label: 30 };
       if (scale < 0.6) return { label: 10 };
@@ -66,7 +66,7 @@ export const useTimelineMarkers = ({
     const intervals = getIntervals(timelineScale);
     const markers: TimeMarker[] = [];
 
-    // 레이블이 필요한 주요 시간점만 생성
+    // Generate only the major time points that need labels
     const startLabel = Math.max(
       0,
       Math.floor(visibleStartTime / intervals.label) * intervals.label
