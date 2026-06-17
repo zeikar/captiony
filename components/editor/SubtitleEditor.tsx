@@ -10,6 +10,7 @@ import { useVideoStore } from "@/lib/stores/video-store";
 import { SubtitleItem } from "./components/SubtitleItem";
 import { EmptyState } from "./components/EmptyState";
 import { KeyboardShortcutsHelp } from "./components/KeyboardShortcutsHelp";
+import { findCurrentSubtitleId } from "./utils/subtitleUtils";
 import type { SubtitleItem as SubtitleItemType } from "@/lib/stores/subtitle-store";
 
 // Virtual scroll constants
@@ -53,36 +54,6 @@ const formatTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, "0")}.${ms
     .toString()
     .padStart(2, "0")}`;
-};
-
-const findCurrentSubtitleId = (
-  subtitles: SubtitleItemType[],
-  currentTime: number
-): string | null => {
-  if (subtitles.length === 0) return null;
-
-  // Binary search for better performance
-  let left = 0;
-  let right = subtitles.length - 1;
-
-  while (left <= right) {
-    const mid = Math.floor((left + right) / 2);
-    const sub = subtitles[mid];
-
-    if (currentTime >= sub.startTime && currentTime <= sub.endTime) {
-      return sub.id;
-    } else if (currentTime < sub.startTime) {
-      right = mid - 1;
-    } else {
-      left = mid + 1;
-    }
-  }
-
-  // Fallback to linear search if binary search fails
-  const foundSub = subtitles.find(
-    (sub) => currentTime >= sub.startTime && currentTime <= sub.endTime
-  );
-  return foundSub?.id || null;
 };
 
 export function SubtitleEditor() {
