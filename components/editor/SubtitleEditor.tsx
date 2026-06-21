@@ -273,8 +273,10 @@ export function SubtitleEditor() {
         </div>
       </div>
 
-      {/* Subtitle List */}
-      <div className="flex-1 min-h-0 px-4 py-4">
+      {/* Subtitle List — horizontal padding lives on each item (inside the scroller)
+          so the scrollbar sits at the panel edge and hover/scale + the selection
+          indicator aren't clipped by the scroller's overflow. */}
+      <div className="flex-1 min-h-0 py-4">
         {filteredSubtitles.length === 0 ? (
           <EmptyState
             type={subtitles.length === 0 ? "no-subtitles" : "no-results"}
@@ -292,7 +294,7 @@ export function SubtitleEditor() {
               visibleRangeRef.current = range;
             }}
             itemContent={(index, subtitle) => (
-              <div style={{ paddingBottom: ITEM_GAP }}>
+              <div className="px-4" style={{ paddingBottom: ITEM_GAP }}>
                 <SubtitleItem
                   subtitle={subtitle}
                   index={index + 1}
