@@ -42,22 +42,23 @@ export function useYouTubePlayer() {
     }
   }, [setVideoDuration]);
 
-  const onDurationChange = useCallback(
-    (e: React.SyntheticEvent<HTMLVideoElement>) => {
-      setVideoDuration(e.currentTarget.duration);
-    },
-    [setVideoDuration]
-  );
+  // Read playback values from the player ref, not the event: youtube-video-element
+  // dispatches these media events with an object whose `currentTarget` is already
+  // cleared, so `e.currentTarget` is undefined by the time the handler runs.
+  const onDurationChange = useCallback(() => {
+    const player = playerRef.current;
+    if (player && Number.isFinite(player.duration) && player.duration > 0) {
+      setVideoDuration(player.duration);
+    }
+  }, [setVideoDuration]);
 
-  const onTimeUpdate = useCallback(
-    (e: React.SyntheticEvent<HTMLVideoElement>) => {
-      // Skip while a programmatic seek is in progress to avoid pushing the
-      // mid-seek time back into the store and retriggering the seek effect.
-      if (isSeekingRef.current) return;
-      setCurrentTime(e.currentTarget.currentTime);
-    },
-    [setCurrentTime]
-  );
+  const onTimeUpdate = useCallback(() => {
+    // Skip while a programmatic seek is in progress to avoid pushing the
+    // mid-seek time back into the store and retriggering the seek effect.
+    if (isSeekingRef.current) return;
+    const player = playerRef.current;
+    if (player) setCurrentTime(player.currentTime);
+  }, [setCurrentTime]);
 
   const onPlay = useCallback(() => {
     setIsPlaying(true);
@@ -74,13 +75,11 @@ export function useYouTubePlayer() {
     }
   }, [setIsPlaying, setCurrentTime]);
 
-  const onSeeked = useCallback(
-    (e: React.SyntheticEvent<HTMLVideoElement>) => {
-      isSeekingRef.current = false;
-      setCurrentTime(e.currentTarget.currentTime);
-    },
-    [setCurrentTime]
-  );
+  const onSeeked = useCallback(() => {
+    isSeekingRef.current = false;
+    const player = playerRef.current;
+    if (player) setCurrentTime(player.currentTime);
+  }, [setCurrentTime]);
 
   const onError = useCallback(() => {
     // The video can't be embedded (private, age/region-restricted, or embedding
