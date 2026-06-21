@@ -11,7 +11,11 @@ const timing = (subs: SubtitleItem[]) =>
   subs.map(({ startTime, endTime, text }) => ({ startTime, endTime, text }));
 
 beforeEach(() => {
-  useSubtitleStore.setState({ subtitles: seed.map((s) => ({ ...s })) });
+  useSubtitleStore.setState({
+    subtitles: seed.map((s) => ({ ...s })),
+    selectedSubtitleId: null,
+    editingSubtitleId: null,
+  });
 });
 
 describe("exportSRT", () => {
@@ -98,5 +102,69 @@ describe("round-trips", () => {
     const vtt = useSubtitleStore.getState().exportVTT();
     useSubtitleStore.getState().importSubtitles(vtt);
     expect(timing(useSubtitleStore.getState().subtitles)).toEqual(timing(seed));
+  });
+});
+
+describe("addSubtitle", () => {
+  it("appends the cue and returns its generated id", () => {
+    const id = useSubtitleStore
+      .getState()
+      .addSubtitle({ startTime: 30, endTime: 32, text: "New" });
+    const { subtitles } = useSubtitleStore.getState();
+    expect(subtitles).toHaveLength(3);
+    expect(subtitles[2]).toEqual({ id, startTime: 30, endTime: 32, text: "New" });
+  });
+});
+
+describe("updateSubtitle", () => {
+  it("applies the given field updates", () => {
+    useSubtitleStore.getState().updateSubtitle("a", { text: "Changed" });
+    expect(useSubtitleStore.getState().subtitles[0].text).toBe("Changed");
+  });
+
+  it("is a no-op (same array reference) when nothing actually changes", () => {
+    const before = useSubtitleStore.getState().subtitles;
+    // Seed "a" already has this text, so no real change occurs.
+    useSubtitleStore.getState().updateSubtitle("a", { text: "Hello! Welcome." });
+    expect(useSubtitleStore.getState().subtitles).toBe(before);
+  });
+
+  it("ignores updates to an unknown id", () => {
+    const before = useSubtitleStore.getState().subtitles;
+    useSubtitleStore.getState().updateSubtitle("missing", { text: "x" });
+    expect(useSubtitleStore.getState().subtitles).toBe(before);
+  });
+});
+
+describe("deleteSubtitle", () => {
+  it("removes the matching cue", () => {
+    useSubtitleStore.getState().deleteSubtitle("a");
+    expect(useSubtitleStore.getState().subtitles.map((s) => s.id)).toEqual([
+      "b",
+    ]);
+  });
+
+  it("clears the selection when the selected cue is deleted", () => {
+    useSubtitleStore.getState().selectSubtitle("a");
+    useSubtitleStore.getState().deleteSubtitle("a");
+    expect(useSubtitleStore.getState().selectedSubtitleId).toBeNull();
+  });
+
+  it("keeps the selection when a different cue is deleted", () => {
+    useSubtitleStore.getState().selectSubtitle("b");
+    useSubtitleStore.getState().deleteSubtitle("a");
+    expect(useSubtitleStore.getState().selectedSubtitleId).toBe("b");
+  });
+});
+
+describe("clearAllSubtitles", () => {
+  it("empties the list and resets selection and editing state", () => {
+    useSubtitleStore.getState().selectSubtitle("a");
+    useSubtitleStore.getState().setEditingSubtitle("a");
+    useSubtitleStore.getState().clearAllSubtitles();
+    const state = useSubtitleStore.getState();
+    expect(state.subtitles).toEqual([]);
+    expect(state.selectedSubtitleId).toBeNull();
+    expect(state.editingSubtitleId).toBeNull();
   });
 });
