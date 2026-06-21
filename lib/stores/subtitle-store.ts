@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { temporal } from "zundo";
 import { useVideoStore } from "./video-store";
 
 // Subtitle item type definition
@@ -46,7 +47,8 @@ interface SubtitleStore {
 
 export const useSubtitleStore = create<SubtitleStore>()(
   persist(
-    (set, get) => ({
+    temporal(
+      (set, get) => ({
   // Initial state
   subtitles: [
     {
@@ -198,7 +200,18 @@ export const useSubtitleStore = create<SubtitleStore>()(
       selectedSubtitleId: null,
       editingSubtitleId: null,
     }),
-}),
+      }),
+      {
+        // History snapshot holds only subtitle data — UI state (selection, editing, timeline) is excluded
+        partialize: (state) => ({ subtitles: state.subtitles }),
+        // Reference equality on the partialized slice: UI-only setters and no-op updates
+        // (updateSubtitle returns the same array when nothing changed) won't record history
+        equality: (a, b) => a.subtitles === b.subtitles,
+        // Coalesce a burst of rapid edits into a single undo step whose snapshot is the
+        // pre-burst state, so Cmd/Ctrl+Z after fast typing undoes the whole burst at once
+        handleSet: (handleSet) => throttleLeading(handleSet, 300),
+      }
+    ),
     {
       name: "captiony-subtitles",
       // Persist only subtitle data; UI state (selection, editing, timeline) is not persisted
@@ -206,6 +219,26 @@ export const useSubtitleStore = create<SubtitleStore>()(
     }
   )
 );
+
+// Fires fn synchronously on the FIRST call in a window, then suppresses further
+// calls until waitMs of quiet elapses (leading-edge only — no trailing invocation).
+// Uses setTimeout so vitest fake timers can control it in tests.
+function throttleLeading<T extends (...args: never[]) => void>(
+  fn: T,
+  waitMs: number
+): (...args: Parameters<T>) => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>): void => {
+    if (timer !== null) {
+      clearTimeout(timer);
+    } else {
+      fn(...args);
+    }
+    timer = setTimeout(() => {
+      timer = null;
+    }, waitMs);
+  };
+}
 
 // Time formatting function (SRT format)
 function formatSRTTime(seconds: number): string {
