@@ -33,11 +33,34 @@ afterEach(() => {
 
 describe("useKeyboardShortcuts", () => {
   it("Space toggles play/pause", () => {
+    // Local play/pause needs both a loaded URL and a media controller.
+    useVideoStore.setState((s) => ({
+      video: { ...s.video, url: "blob:test", source: "local" },
+      videoRef: {
+        current: {
+          play: () => Promise.resolve(),
+          pause: () => {},
+          currentTime: 0,
+          duration: 0,
+          volume: 1,
+        },
+      },
+    }));
     render(<Host />);
     expect(useVideoStore.getState().video.isPlaying).toBe(false);
 
     fireEvent.keyDown(document.body, { key: " " });
     expect(useVideoStore.getState().video.isPlaying).toBe(true);
+  });
+
+  it("Space is a no-op for a local source with no media controller", () => {
+    useVideoStore.setState((s) => ({
+      video: { ...s.video, url: "blob:test", source: "local" },
+      videoRef: null,
+    }));
+    render(<Host />);
+    fireEvent.keyDown(document.body, { key: " " });
+    expect(useVideoStore.getState().video.isPlaying).toBe(false);
   });
 
   it("Delete removes the selected subtitle", () => {

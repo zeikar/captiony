@@ -14,7 +14,6 @@ export function useVideoPlayer() {
     setCurrentTimeSmooth,
     setIsPlaying,
     setVideoDuration,
-    setVolume,
     setVideoRef,
   } = useVideoStore();
 
@@ -175,51 +174,7 @@ export function useVideoPlayer() {
     }
   }, [video.currentTime, video.url]);
 
-  // Player control functions
-  const togglePlay = useCallback(() => {
-    const videoElement = videoRef.current;
-    if (!videoElement) return;
-
-    if (video.isPlaying) {
-      videoElement.pause();
-    } else {
-      videoElement.play().catch(console.error);
-    }
-  }, [video.isPlaying]);
-
-  const handleSeek = useCallback(
-    (time: number) => {
-      const videoElement = videoRef.current;
-      if (!videoElement) return;
-
-      isSeekingRef.current = true;
-      setCurrentTime(time);
-      videoElement.currentTime = time;
-    },
-    [setCurrentTime]
-  );
-
-  const handleVolumeChange = useCallback(
-    (volume: number) => {
-      const videoElement = videoRef.current;
-      if (!videoElement) return;
-
-      setVolume(volume);
-      videoElement.volume = volume;
-    },
-    [setVolume]
-  );
-
-  const toggleMute = useCallback(() => {
-    handleVolumeChange(video.volume > 0 ? 0 : 1);
-  }, [video.volume, handleVolumeChange]);
-
   return {
     videoRef,
-    video,
-    togglePlay,
-    handleSeek,
-    handleVolumeChange,
-    toggleMute,
   };
 }

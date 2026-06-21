@@ -40,6 +40,7 @@ describe("isYouTubeUrl", () => {
   it("rejects YouTube hosts without a real video target", () => {
     expect(isYouTubeUrl("https://youtube.com/")).toBe(false);
     expect(isYouTubeUrl("https://www.youtube.com/watch")).toBe(false); // no v param
+    expect(isYouTubeUrl("https://www.youtube.com/watch?v=")).toBe(false); // empty v
     expect(isYouTubeUrl("https://youtu.be/")).toBe(false); // no id
   });
 });

@@ -62,7 +62,7 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
   // Video actions
   setVideoUrl: (url, source = "local") =>
     set((state) => ({
-      video: { ...state.video, url, source },
+      video: { ...state.video, url, source, isPlaying: false },
     })),
 
   // Return to the empty/uploader state; used by uploader-return and YouTube
@@ -115,15 +115,24 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
 
   togglePlayPause: () => {
     const { video, videoRef } = get();
+    if (!video.url) return; // nothing loaded — toggling play is a no-op
     // Local <video> is driven imperatively; the YouTube react-player is a
     // controlled component driven by its `playing` prop — only flip state there.
     if (video.source === "local") {
       const videoElement = videoRef?.current;
-      if (videoElement) {
-        if (video.isPlaying) videoElement.pause();
-        else videoElement.play().catch(console.error);
+      if (!videoElement) return; // local playback needs a real controller
+      if (video.isPlaying) {
+        videoElement.pause();
+      } else {
+        videoElement.play().catch((err) => {
+          console.error(err);
+          // play() rejected — revert the optimistic flip so the UI doesn't
+          // show playback while the media is stopped.
+          set((state) => ({ video: { ...state.video, isPlaying: false } }));
+        });
       }
     }
+    // Reached for local (with a controller) and for YouTube (controlled `playing` prop).
     set((state) => ({
       video: { ...state.video, isPlaying: !state.video.isPlaying },
     }));

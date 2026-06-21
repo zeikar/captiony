@@ -30,6 +30,10 @@ export function isYouTubeUrl(url: string): boolean {
     return false;
   }
 
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return false;
+  }
+
   // youtu.be short links: path must be a non-empty video id
   if (parsed.hostname === "youtu.be") {
     return parsed.pathname.length > 1;
@@ -41,7 +45,8 @@ export function isYouTubeUrl(url: string): boolean {
 
   // /watch?v=<id>
   if (parsed.pathname === "/watch") {
-    return parsed.searchParams.get("v") !== null;
+    const v = parsed.searchParams.get("v");
+    return v !== null && v.trim().length > 0;
   }
 
   // /shorts/<id>
