@@ -115,16 +115,15 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
 
   togglePlayPause: () => {
     const { video, videoRef } = get();
-    const videoElement = videoRef?.current;
-
-    if (videoElement) {
-      if (video.isPlaying) {
-        videoElement.pause();
-      } else {
-        videoElement.play().catch(console.error);
+    // Local <video> is driven imperatively; the YouTube react-player is a
+    // controlled component driven by its `playing` prop — only flip state there.
+    if (video.source === "local") {
+      const videoElement = videoRef?.current;
+      if (videoElement) {
+        if (video.isPlaying) videoElement.pause();
+        else videoElement.play().catch(console.error);
       }
     }
-
     set((state) => ({
       video: { ...state.video, isPlaying: !state.video.isPlaying },
     }));

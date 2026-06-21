@@ -1,40 +1,34 @@
 import type { SubtitleItem } from "@/lib/stores/subtitle-store";
 import { VideoUploader } from "./VideoUploader";
+import { LocalVideoSurface } from "./LocalVideoSurface";
+import { YouTubeSurface } from "./YouTubeSurface";
 
 interface VideoAreaProps {
-  videoRef: React.RefObject<HTMLVideoElement | null>;
   videoUrl: string | null;
+  source: "local" | "youtube";
   currentSubtitle: SubtitleItem | null;
-  onVideoClick: () => void;
   onVideoSelect: (file: File) => void;
 }
 
 export function VideoArea({
-  videoRef,
   videoUrl,
+  source,
   currentSubtitle,
-  onVideoClick,
   onVideoSelect,
 }: VideoAreaProps) {
-  return (
-    <div className="relative bg-gray-100 dark:bg-gray-800 h-full rounded-t-xl">
-      {videoUrl ? (
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          className="w-full max-h-full object-contain rounded-t-xl"
-          onClick={onVideoClick}
-        />
-      ) : (
-        <VideoUploader onVideoSelect={onVideoSelect} />
-      )}
+  // Branch on source so only the active surface mounts and registers a
+  // controller — keeps the Rules of Hooks intact across backends.
+  if (videoUrl && source === "youtube") {
+    return (
+      <YouTubeSurface videoUrl={videoUrl} currentSubtitle={currentSubtitle} />
+    );
+  }
 
-      {/* Subtitle overlay */}
-      {currentSubtitle && (
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg max-w-xs text-center font-medium shadow-lg border border-white/20">
-          {currentSubtitle.text}
-        </div>
-      )}
-    </div>
-  );
+  if (videoUrl && source === "local") {
+    return (
+      <LocalVideoSurface videoUrl={videoUrl} currentSubtitle={currentSubtitle} />
+    );
+  }
+
+  return <VideoUploader onVideoSelect={onVideoSelect} />;
 }

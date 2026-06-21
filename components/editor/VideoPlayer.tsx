@@ -3,7 +3,6 @@
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
 import { useVideoStore } from "@/lib/stores/video-store";
-import { useVideoPlayer } from "./hooks/useVideoPlayer";
 import { calculateProgress } from "./utils/videoUtils";
 import { VideoArea } from "./components/VideoArea";
 import { ProgressBar } from "./components/ProgressBar";
@@ -11,19 +10,12 @@ import { VolumeControl } from "./components/VolumeControl";
 
 export function VideoPlayer() {
   const { getCurrentSubtitle } = useSubtitleStore();
-  const { setVideoUrl } = useVideoStore();
-  const {
-    videoRef,
-    video,
-    togglePlay,
-    handleSeek,
-    handleVolumeChange,
-    toggleMute,
-  } = useVideoPlayer();
+  const { video, setVideoUrl, togglePlayPause, seekTo, setVolume } =
+    useVideoStore();
 
   const handleVideoSelect = (file: File) => {
     const url = URL.createObjectURL(file);
-    setVideoUrl(url);
+    setVideoUrl(url, "local");
   };
 
   const currentSubtitle = getCurrentSubtitle();
@@ -37,10 +29,9 @@ export function VideoPlayer() {
       {/* Video area */}
       <div className="flex-1 min-h-0">
         <VideoArea
-          videoRef={videoRef}
           videoUrl={video.url}
+          source={video.source}
           currentSubtitle={currentSubtitle}
-          onVideoClick={togglePlay}
           onVideoSelect={handleVideoSelect}
         />
       </div>
@@ -51,7 +42,7 @@ export function VideoPlayer() {
         <ProgressBar
           currentTime={video.currentTime}
           duration={video.duration}
-          onSeek={handleSeek}
+          onSeek={seekTo}
         />
 
         {/* Control buttons */}
@@ -59,7 +50,7 @@ export function VideoPlayer() {
           <div className="flex items-center gap-6">
             {/* Play/Pause button */}
             <button
-              onClick={togglePlay}
+              onClick={togglePlayPause}
               className="group flex items-center justify-center w-12 h-12 rounded-full bg-white dark:bg-gray-700 shadow-md hover:shadow-lg border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
               disabled={!video.url}
               aria-label={video.isPlaying ? "Pause" : "Play"}
@@ -74,8 +65,8 @@ export function VideoPlayer() {
             {/* Volume control */}
             <VolumeControl
               volume={video.volume}
-              onVolumeChange={handleVolumeChange}
-              onToggleMute={toggleMute}
+              onVolumeChange={setVolume}
+              onToggleMute={() => setVolume(video.volume > 0 ? 0 : 1)}
             />
           </div>
 
