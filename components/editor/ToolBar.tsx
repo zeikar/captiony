@@ -6,7 +6,10 @@ import {
   DocumentArrowDownIcon,
   FolderOpenIcon,
   DocumentPlusIcon,
+  ArrowUturnLeftIcon,
+  ArrowUturnRightIcon,
 } from "@heroicons/react/24/outline";
+import { useStore } from "zustand";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
 import { useVideoStore } from "@/lib/stores/video-store";
 import { saveAs } from "file-saver";
@@ -18,6 +21,12 @@ export function ToolBar() {
   const { exportSRT, exportVTT, importSubtitles, clearAllSubtitles } =
     useSubtitleStore();
   const { setVideoUrl } = useVideoStore();
+
+  const canUndo = useStore(useSubtitleStore.temporal, (state) => state.pastStates.length > 0);
+  const canRedo = useStore(useSubtitleStore.temporal, (state) => state.futureStates.length > 0);
+
+  const handleUndo = () => useSubtitleStore.temporal.getState().undo();
+  const handleRedo = () => useSubtitleStore.temporal.getState().redo();
 
   const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -68,6 +77,28 @@ export function ToolBar() {
       >
         <DocumentPlusIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
         New Project
+      </button>
+
+      <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
+
+      <button
+        onClick={handleUndo}
+        disabled={!canUndo}
+        title="Undo"
+        className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-600/50 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm font-medium border border-gray-200/50 dark:border-gray-600/50 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm group disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-gray-50 dark:disabled:hover:bg-gray-700/50 disabled:hover:border-gray-200/50 dark:disabled:hover:border-gray-600/50 disabled:hover:shadow-none"
+      >
+        <ArrowUturnLeftIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+        Undo
+      </button>
+
+      <button
+        onClick={handleRedo}
+        disabled={!canRedo}
+        title="Redo"
+        className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-600/50 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm font-medium border border-gray-200/50 dark:border-gray-600/50 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm group disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-gray-50 dark:disabled:hover:bg-gray-700/50 disabled:hover:border-gray-200/50 dark:disabled:hover:border-gray-600/50 disabled:hover:shadow-none"
+      >
+        <ArrowUturnRightIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+        Redo
       </button>
 
       <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />

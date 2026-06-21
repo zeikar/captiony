@@ -30,6 +30,17 @@ export function useKeyboardShortcuts() {
         }
       }
 
+      // Cmd/Ctrl+Z: undo; Cmd/Ctrl+Shift+Z: redo
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "z") {
+        if (e.shiftKey) {
+          useSubtitleStore.temporal.getState().redo();
+        } else {
+          useSubtitleStore.temporal.getState().undo();
+        }
+        e.preventDefault();
+        return;
+      }
+
       switch (e.key) {
         case " ": // Spacebar — play/pause
           e.preventDefault();
