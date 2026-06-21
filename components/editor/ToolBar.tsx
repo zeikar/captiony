@@ -12,20 +12,13 @@ import { useVideoStore } from "@/lib/stores/video-store";
 import { saveAs } from "file-saver";
 
 export function ToolBar() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const srtInputRef = useRef<HTMLInputElement>(null);
 
   const { exportSRT, exportVTT, importSubtitles, clearAllSubtitles } =
     useSubtitleStore();
-  const { setVideoUrl } = useVideoStore();
-
-  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setVideoUrl(url);
-    }
-  };
+  // "Select Video" returns to the empty picker (the in-player file/YouTube
+  // split), which is the single place a source is chosen.
+  const { clearVideo } = useVideoStore();
 
   const handleSubtitleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -73,7 +66,7 @@ export function ToolBar() {
       <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
 
       <button
-        onClick={() => fileInputRef.current?.click()}
+        onClick={clearVideo}
         className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-600/50 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 text-sm font-medium border border-gray-200/50 dark:border-gray-600/50 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm group"
       >
         <PlusIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
@@ -106,14 +99,7 @@ export function ToolBar() {
         Export VTT
       </button>
 
-      {/* Hidden inputs */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="video/*"
-        onChange={handleVideoUpload}
-        className="hidden"
-      />
+      {/* Hidden input for subtitle file loading */}
       <input
         ref={srtInputRef}
         type="file"

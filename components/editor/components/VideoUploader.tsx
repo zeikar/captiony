@@ -1,12 +1,15 @@
 import { useState, useRef, useCallback } from "react";
-import { PlusIcon } from "@heroicons/react/24/outline";
+import { ArrowUpTrayIcon, PlayCircleIcon } from "@heroicons/react/24/outline";
 
 interface VideoUploaderProps {
   onVideoSelect: (file: File) => void;
   onYouTubeSelect: (url: string) => void;
 }
 
-export function VideoUploader({ onVideoSelect, onYouTubeSelect }: VideoUploaderProps) {
+export function VideoUploader({
+  onVideoSelect,
+  onYouTubeSelect,
+}: VideoUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [youtubeInput, setYoutubeInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -21,28 +24,34 @@ export function VideoUploader({ onVideoSelect, onYouTubeSelect }: VideoUploaderP
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
 
-    const files = Array.from(e.dataTransfer.files);
-    const videoFile = files.find(file => file.type.startsWith('video/'));
+      const files = Array.from(e.dataTransfer.files);
+      const videoFile = files.find((file) => file.type.startsWith("video/"));
 
-    if (videoFile) {
-      onVideoSelect(videoFile);
-    }
-  }, [onVideoSelect]);
+      if (videoFile) {
+        onVideoSelect(videoFile);
+      }
+    },
+    [onVideoSelect]
+  );
 
   const handleClick = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('video/')) {
-      onVideoSelect(file);
-    }
-  }, [onVideoSelect]);
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file && file.type.startsWith("video/")) {
+        onVideoSelect(file);
+      }
+    },
+    [onVideoSelect]
+  );
 
   const handleYouTubeSubmit = useCallback(() => {
     const trimmed = youtubeInput.trim();
@@ -51,35 +60,41 @@ export function VideoUploader({ onVideoSelect, onYouTubeSelect }: VideoUploaderP
     onYouTubeSelect(trimmed);
   }, [youtubeInput, onYouTubeSelect]);
 
-  const handleYouTubeKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleYouTubeSubmit();
-    }
-  }, [handleYouTubeSubmit]);
+  const handleYouTubeKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        handleYouTubeSubmit();
+      }
+    },
+    [handleYouTubeSubmit]
+  );
 
   return (
-    <div className="w-full h-full flex flex-col bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-t-xl">
-      {/* Drag/drop + file-picker area */}
+    <div className="w-full h-full flex flex-col sm:flex-row bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-t-xl">
+      {/* Left half — local file (drag & drop / click to select) */}
       <div
-        className={`flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400 cursor-pointer transition-all duration-200 ${
+        className={`flex-1 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 cursor-pointer transition-all duration-200 rounded-lg m-3 ${
           isDragOver
-            ? 'border-2 border-dashed border-blue-400 bg-blue-50 dark:bg-blue-900/20'
-            : 'border-2 border-dashed border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+            ? "border-2 border-dashed border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+            : "border-2 border-dashed border-gray-300/70 dark:border-gray-600/70 hover:border-gray-400 dark:hover:border-gray-500"
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={handleClick}
       >
-        <div className="text-center pointer-events-none">
-          <div className="bg-white dark:bg-gray-700 rounded-full p-6 mb-4 shadow-lg border border-gray-200 dark:border-gray-600 inline-block">
-            <PlusIcon className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+        <div className="text-center pointer-events-none px-4">
+          <div className="bg-white dark:bg-gray-700 rounded-full p-5 mb-4 shadow-lg border border-gray-200 dark:border-gray-600 inline-block">
+            <ArrowUpTrayIcon className="h-10 w-10 text-gray-400 dark:text-gray-500" />
           </div>
-          <p className="text-lg font-medium text-gray-600 dark:text-gray-300">
-            Select a video to get started
+          <p className="text-base font-medium text-gray-600 dark:text-gray-300">
+            Drag &amp; drop a video
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            Drag and drop or click to select your video file
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            or click to select a file
+          </p>
+          <p className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500 mt-3">
+            Local file
           </p>
         </div>
 
@@ -92,22 +107,28 @@ export function VideoUploader({ onVideoSelect, onYouTubeSelect }: VideoUploaderP
         />
       </div>
 
-      {/* YouTube URL input — stops click from bubbling to the file picker */}
-      <div
-        className="flex-shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-          Or load a YouTube video
+      {/* Divider */}
+      <div className="self-stretch flex items-center justify-center">
+        <div className="hidden sm:block w-px h-2/3 bg-gray-300 dark:bg-gray-600" />
+        <div className="sm:hidden h-px w-2/3 bg-gray-300 dark:bg-gray-600" />
+      </div>
+
+      {/* Right half — YouTube link */}
+      <div className="flex-1 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 px-6 py-6">
+        <div className="bg-white dark:bg-gray-700 rounded-full p-5 mb-4 shadow-lg border border-gray-200 dark:border-gray-600">
+          <PlayCircleIcon className="h-10 w-10 text-red-500/80" />
+        </div>
+        <p className="text-base font-medium text-gray-600 dark:text-gray-300 mb-3">
+          Paste a YouTube link
         </p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full max-w-sm">
           <input
             type="text"
             value={youtubeInput}
             onChange={(e) => setYoutubeInput(e.target.value)}
             onKeyDown={handleYouTubeKeyDown}
             placeholder="https://www.youtube.com/watch?v=..."
-            className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500"
+            className="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500"
           />
           <button
             onClick={handleYouTubeSubmit}
@@ -117,6 +138,9 @@ export function VideoUploader({ onVideoSelect, onYouTubeSelect }: VideoUploaderP
             Load
           </button>
         </div>
+        <p className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500 mt-3">
+          YouTube link
+        </p>
       </div>
     </div>
   );
