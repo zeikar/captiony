@@ -18,16 +18,3 @@ export const makeSubtitle = (
   text: "Sample line",
   ...overrides,
 });
-
-// Edge cases worth exercising.
-export const overlappingSubtitles: SubtitleItem[] = [
-  { id: "x", startTime: 0, endTime: 4, text: "Overlaps the next cue" },
-  { id: "y", startTime: 3, endTime: 6, text: "Starts before x ends" },
-];
-
-export const zeroDurationSubtitle: SubtitleItem = {
-  id: "z",
-  startTime: 5,
-  endTime: 5,
-  text: "Zero length",
-};
