@@ -35,6 +35,15 @@ Object.defineProperty(globalThis, "localStorage", {
   writable: true,
 });
 
+// jsdom lacks ResizeObserver, which react-virtuoso (the subtitle list) requires.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver ??=
+  ResizeObserverStub as unknown as typeof ResizeObserver;
+
 afterEach(() => {
   // Unmount React trees rendered via Testing Library.
   cleanup();
