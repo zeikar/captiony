@@ -210,6 +210,29 @@ describe("temporal history", () => {
     expect(timing(useSubtitleStore.getState().subtitles)).toEqual(timing(seed));
   });
 
+  it("undo after add-and-select removes the cue and clears the selection", () => {
+    // Pre-select an existing cue so we have a known prior selection state.
+    useSubtitleStore.getState().selectSubtitle("a");
+
+    // addSubtitle triggers the leading edge (first call in fresh window).
+    const newId = useSubtitleStore
+      .getState()
+      .addSubtitle({ startTime: 20, endTime: 22, text: "New" });
+    // selectSubtitle is UI-only — no new history entry.
+    useSubtitleStore.getState().selectSubtitle(newId);
+
+    expect(useSubtitleStore.temporal.getState().pastStates.length).toBe(1);
+
+    useSubtitleStore.temporal.getState().undo();
+
+    const state = useSubtitleStore.getState();
+    // (a) The added cue must be gone.
+    expect(state.subtitles).toHaveLength(2);
+    expect(state.subtitles.find((s) => s.id === newId)).toBeUndefined();
+    // (b) selectedSubtitleId must no longer point at the removed cue.
+    expect(state.selectedSubtitleId).not.toBe(newId);
+  });
+
   it("burst coalesces: trim+add in one throttle window records a single entry", () => {
     // Seed "a" endTime is 5.0; changing to 4.0 is a real mutation (leading edge fires).
     useSubtitleStore.getState().updateSubtitle("a", { endTime: 4.0 });

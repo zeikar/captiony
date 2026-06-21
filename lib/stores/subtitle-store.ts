@@ -202,8 +202,15 @@ export const useSubtitleStore = create<SubtitleStore>()(
     }),
       }),
       {
-        // History snapshot holds only subtitle data — UI state (selection, editing, timeline) is excluded
-        partialize: (state) => ({ subtitles: state.subtitles }),
+        // History snapshot holds subtitle data plus the UI selection/editing IDs so that
+        // undo restores a coherent context (no dangling references to removed subtitles).
+        // Equality is still gated on the subtitles array reference only — UI-only setters
+        // (selectSubtitle, setEditingSubtitle, timeline) still do NOT record history.
+        partialize: (state) => ({
+          subtitles: state.subtitles,
+          selectedSubtitleId: state.selectedSubtitleId,
+          editingSubtitleId: state.editingSubtitleId,
+        }),
         // Reference equality on the partialized slice: UI-only setters and no-op updates
         // (updateSubtitle returns the same array when nothing changed) won't record history
         equality: (a, b) => a.subtitles === b.subtitles,
