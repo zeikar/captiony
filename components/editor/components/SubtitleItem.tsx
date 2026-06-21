@@ -132,7 +132,8 @@ function SubtitleItemComponent({
       onClick={handleSelectClick}
       style={{
         height: "100%",
-        overflow: "hidden",
+        // No overflow:hidden here — the inner text wrapper (below) clips overflowing
+        // text, and the SelectionIndicator needs to extend past the card's left edge.
         display: "flex",
         flexDirection: "column",
       }}

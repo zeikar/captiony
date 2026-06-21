@@ -273,9 +273,9 @@ export function SubtitleEditor() {
         </div>
       </div>
 
-      {/* Subtitle List — horizontal padding lives on each item (inside the scroller)
-          so the scrollbar sits at the panel edge and hover/scale + the selection
-          indicator aren't clipped by the scroller's overflow. */}
+      {/* Subtitle List — horizontal padding lives on each item (inside the scroller),
+          so the scrollbar sits at the panel edge and the gutter gives each card's
+          hover scale/shadow and selection indicator room instead of clipping them. */}
       <div className="flex-1 min-h-0 py-4">
         {filteredSubtitles.length === 0 ? (
           <EmptyState
