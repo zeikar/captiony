@@ -8,10 +8,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev      # Dev server with Turbopack (http://localhost:3000)
 npm run build    # Production build
 npm run start    # Serve the production build
-npm run lint     # ESLint via `next lint`
+npm run lint     # ESLint via `next lint` — opens interactive setup, not a clean check
+npm test         # Vitest suite, run once (`vitest run`)
+npm run test:watch # Vitest in watch mode
 ```
 
-There is no test framework configured — verify changes by running the app.
+Tests run via **Vitest** — `*.test.ts` files sit next to the code they cover (`lib/stores/`, `components/editor/utils/`). Verify changes with `npm test` + `npm run build` (the build also type-checks). `npm run lint` is unreliable (it launches Next's interactive ESLint setup), so don't depend on it. For UI/playback behavior, also run the app.
 
 ## Environment
 
@@ -29,7 +31,8 @@ Next.js 15 (App Router) + React 19 + TypeScript + Tailwind CSS 4. Path alias `@/
 
 ### State: two Zustand stores with different lifecycles
 
-- **`lib/stores/subtitle-store.ts`** — subtitle data + timeline UI state. Persisted to `localStorage` under `captiony-subtitles`, but `partialize` saves **only `subtitles`** (selection/editing/timeline state is intentionally not persisted). Also owns SRT/VTT import/export and parsing (no external library). Seeded with demo subtitles.
+- **`lib/stores/subtitle-store.ts`** — subtitle data + timeline UI state. Persisted to `localStorage` under `captiony-subtitles`, but the persist `partialize` saves **only `subtitles`** (selection/editing/timeline state is intentionally not persisted). Also owns SRT/VTT import/export and parsing (no external library). Seeded with demo subtitles.
+  - **Undo/redo via [`zundo`](https://github.com/charkour/zundo) `temporal` middleware**, composed *inside* `persist` (`persist(temporal(initializer, …), …)`). Its own (separate) temporal `partialize` snapshots `subtitles` **plus** `selectedSubtitleId`/`editingSubtitleId` so undo restores a coherent UI context (no dangling selection after undoing an add). `equality` gates recording on the `subtitles` array reference only, so UI-only setters (select/edit/timeline) and no-op `updateSubtitle`s don't record history. A private leading-edge `throttleLeading(handleSet, 300)` coalesces a burst of rapid edits (per-keystroke time typing, repeated nudges, the S-key split's two mutations) into a **single** undo step whose snapshot is the pre-burst state; a drag commits once on mouseUp, so it's already one step. History is **in-memory/session-only** (never persisted — refresh starts empty). Consumed imperatively via `useSubtitleStore.temporal.getState().undo()/.redo()` (keyboard `Cmd/Ctrl+Z` / `+Shift` in `useKeyboardShortcuts.ts`, placed after the input/textarea early-return so native text-field undo still wins inside inputs) and reactively via `useStore(useSubtitleStore.temporal, …)` for the ToolBar Undo/Redo button disabled state.
 - **`lib/stores/video-store.ts`** — playback state. **Not** persisted. Holds a `videoRef` to the actual `<video>` element; actions like `togglePlayPause`/`seekTo` imperatively drive the DOM element *and* mirror state. Keep this two-way coupling in mind — changing playback state usually means also calling the DOM element.
 
 The subtitle store cross-reads the video store via `useVideoStore.getState()` (e.g. `getCurrentSubtitle` matches against `video.currentTime`), so the stores are coupled one-directionally.
