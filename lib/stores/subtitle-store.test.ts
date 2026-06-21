@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSubtitleStore, type SubtitleItem } from "./subtitle-store";
 
 // Drive the store directly (no React) and seed a known state before each test.
@@ -166,5 +166,64 @@ describe("clearAllSubtitles", () => {
     expect(state.subtitles).toEqual([]);
     expect(state.selectedSubtitleId).toBeNull();
     expect(state.editingSubtitleId).toBeNull();
+  });
+});
+
+describe("temporal history", () => {
+  // Install fake timers ONCE before any test in this block — this means they are
+  // active when the outer beforeEach seed fires, so throttleLeading's setTimeout
+  // uses the fake clock and we can advance it deterministically.
+  beforeAll(() => vi.useFakeTimers());
+  afterAll(() => vi.useRealTimers());
+
+  // Runs AFTER the outer beforeEach seed. The seed's setState fired the leading
+  // edge of throttleLeading, starting a 300 ms fake-timer cooldown. Advance past
+  // it so each test starts with a fresh, unblocked leading edge, then wipe the
+  // history recorded by the seed.
+  beforeEach(() => {
+    vi.advanceTimersByTime(300);
+    useSubtitleStore.temporal.getState().clear();
+  });
+
+  it("UI-only actions do not record history", () => {
+    const { selectSubtitle, setEditingSubtitle, setTimelineScale, setTimelineOffset, setTimelineMode } =
+      useSubtitleStore.getState();
+
+    selectSubtitle("a");
+    setEditingSubtitle("a");
+    setTimelineScale(2);
+    setTimelineOffset(100);
+    setTimelineMode("centered");
+
+    // None of these change the subtitles array reference, so the equality check
+    // in temporal's partialize passes and nothing is recorded.
+    expect(useSubtitleStore.temporal.getState().pastStates.length).toBe(0);
+  });
+
+  it("a real subtitle change records one entry and undo restores the seed", () => {
+    useSubtitleStore.getState().updateSubtitle("a", { text: "Changed" });
+
+    expect(useSubtitleStore.temporal.getState().pastStates.length).toBe(1);
+
+    useSubtitleStore.temporal.getState().undo();
+
+    expect(timing(useSubtitleStore.getState().subtitles)).toEqual(timing(seed));
+  });
+
+  it("burst coalesces: trim+add in one throttle window records a single entry", () => {
+    // Seed "a" endTime is 5.0; changing to 4.0 is a real mutation (leading edge fires).
+    useSubtitleStore.getState().updateSubtitle("a", { endTime: 4.0 });
+    // Second call is within the same 300 ms window — throttleLeading suppresses it.
+    useSubtitleStore.getState().addSubtitle({ startTime: 10, endTime: 12, text: "Extra" });
+
+    // Only one history entry despite two state-mutating calls.
+    expect(useSubtitleStore.temporal.getState().pastStates.length).toBe(1);
+
+    useSubtitleStore.temporal.getState().undo();
+
+    // After undo: "a" must be untrimmed, the added cue must be gone, count back to 2.
+    const restored = useSubtitleStore.getState().subtitles;
+    expect(restored).toHaveLength(2);
+    expect(timing(restored)).toEqual(timing(seed));
   });
 });
