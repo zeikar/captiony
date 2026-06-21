@@ -20,6 +20,7 @@ export function resetVideoStore() {
   useVideoStore.setState({
     video: {
       url: null,
+      source: "local",
       duration: 30,
       currentTime: 0,
       isPlaying: false,
