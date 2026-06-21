@@ -187,7 +187,7 @@ export function SubtitleEditor() {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/50 dark:border-gray-700/50">
+      <div className="flex flex-wrap items-center justify-between gap-y-3 px-6 py-4 border-b border-gray-200/50 dark:border-gray-700/50">
         <div className="flex items-center gap-4">
           <div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
