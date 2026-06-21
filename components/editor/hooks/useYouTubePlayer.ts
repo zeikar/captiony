@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from "react";
 import { useVideoStore } from "@/lib/stores/video-store";
+import { useNotification } from "@/contexts/notification-context";
 
 const SYNC_THRESHOLD = 0.1; // only sync when drift exceeds 0.1s
 
@@ -21,6 +22,9 @@ export function useYouTubePlayer() {
     clearVideoRef,
     clearVideo,
   } = useVideoStore();
+
+  // Capture at hook level — hooks can't be called inside event callbacks.
+  const { addErrorNotification } = useNotification();
 
   // react-player's ref structurally satisfies MediaController, so register it
   // as-is. Only the active surface is mounted, so this is the sole YouTube ref.
@@ -79,9 +83,13 @@ export function useYouTubePlayer() {
   );
 
   const onError = useCallback(() => {
-    // TODO: surface a toast on embed failure (wired next)
+    // The video can't be embedded (private, age/region-restricted, or embedding
+    // disabled). Notify the user then return to the uploader so the UI doesn't hang.
+    addErrorNotification(
+      "This video can't be embedded — it may be private, age-restricted, region-restricted, or have embedding disabled."
+    );
     clearVideo();
-  }, [clearVideo]);
+  }, [addErrorNotification, clearVideo]);
 
   // Drive the player when currentTime changes externally (keyboard/timeline/
   // progress-bar seeks). isSeekingRef prevents onTimeUpdate from echoing the

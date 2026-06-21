@@ -8,6 +8,7 @@ interface VideoAreaProps {
   source: "local" | "youtube";
   currentSubtitle: SubtitleItem | null;
   onVideoSelect: (file: File) => void;
+  onYouTubeSelect: (url: string) => void;
 }
 
 export function VideoArea({
@@ -15,6 +16,7 @@ export function VideoArea({
   source,
   currentSubtitle,
   onVideoSelect,
+  onYouTubeSelect,
 }: VideoAreaProps) {
   // Branch on source so only the active surface mounts and registers a
   // controller — keeps the Rules of Hooks intact across backends.
@@ -30,5 +32,5 @@ export function VideoArea({
     );
   }
 
-  return <VideoUploader onVideoSelect={onVideoSelect} />;
+  return <VideoUploader onVideoSelect={onVideoSelect} onYouTubeSelect={onYouTubeSelect} />;
 }

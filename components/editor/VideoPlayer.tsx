@@ -3,7 +3,8 @@
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
 import { useVideoStore } from "@/lib/stores/video-store";
-import { calculateProgress } from "./utils/videoUtils";
+import { useNotification } from "@/contexts/notification-context";
+import { calculateProgress, isYouTubeUrl } from "./utils/videoUtils";
 import { VideoArea } from "./components/VideoArea";
 import { ProgressBar } from "./components/ProgressBar";
 import { VolumeControl } from "./components/VolumeControl";
@@ -12,10 +13,20 @@ export function VideoPlayer() {
   const { getCurrentSubtitle } = useSubtitleStore();
   const { video, setVideoUrl, togglePlayPause, seekTo, setVolume } =
     useVideoStore();
+  const { addErrorNotification } = useNotification();
 
   const handleVideoSelect = (file: File) => {
     const url = URL.createObjectURL(file);
     setVideoUrl(url, "local");
+  };
+
+  // Validate before storing — bad URLs must never reach the YouTube player.
+  const handleYouTubeSelect = (url: string) => {
+    if (!isYouTubeUrl(url)) {
+      addErrorNotification("Enter a valid YouTube URL");
+      return;
+    }
+    setVideoUrl(url, "youtube");
   };
 
   const currentSubtitle = getCurrentSubtitle();
@@ -33,6 +44,7 @@ export function VideoPlayer() {
           source={video.source}
           currentSubtitle={currentSubtitle}
           onVideoSelect={handleVideoSelect}
+          onYouTubeSelect={handleYouTubeSelect}
         />
       </div>
 
