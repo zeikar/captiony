@@ -100,6 +100,18 @@ const shortcuts: Shortcut[] = [
     category: "Subtitle Editing",
   },
 
+  // History
+  {
+    key: "Cmd/Ctrl + Z",
+    description: "Undo",
+    category: "History",
+  },
+  {
+    key: "Cmd/Ctrl + Shift + Z",
+    description: "Redo",
+    category: "History",
+  },
+
   // Subtitle Movement
   {
     key: "Shift + ←",

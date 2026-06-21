@@ -5,7 +5,10 @@ import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import {
   MagnifyingGlassIcon,
   PlusIcon,
+  ArrowUturnLeftIcon,
+  ArrowUturnRightIcon,
 } from "@heroicons/react/24/outline";
+import { useStore } from "zustand";
 import { useSubtitleStore } from "@/lib/stores/subtitle-store";
 import { useVideoStore } from "@/lib/stores/video-store";
 import { SubtitleItem } from "./components/SubtitleItem";
@@ -28,6 +31,18 @@ export function SubtitleEditor() {
   const selectSubtitle = useSubtitleStore((s) => s.selectSubtitle);
   const addSubtitle = useSubtitleStore((s) => s.addSubtitle);
   const setEditingSubtitle = useSubtitleStore((s) => s.setEditingSubtitle);
+
+  // Undo/redo history (zundo temporal store) — reactive button state + imperative actions
+  const canUndo = useStore(
+    useSubtitleStore.temporal,
+    (state) => state.pastStates.length > 0
+  );
+  const canRedo = useStore(
+    useSubtitleStore.temporal,
+    (state) => state.futureStates.length > 0
+  );
+  const handleUndo = () => useSubtitleStore.temporal.getState().undo();
+  const handleRedo = () => useSubtitleStore.temporal.getState().redo();
 
   const currentTime = useVideoStore((s) => s.video.currentTime);
   const isPlaying = useVideoStore((s) => s.video.isPlaying);
@@ -203,6 +218,28 @@ export function SubtitleEditor() {
           </button>
 
           <KeyboardShortcutsHelp />
+
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-700" />
+
+          <button
+            onClick={handleUndo}
+            disabled={!canUndo}
+            aria-label="Undo"
+            title="Undo"
+            className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+          >
+            <ArrowUturnLeftIcon className="h-5 w-5" />
+          </button>
+
+          <button
+            onClick={handleRedo}
+            disabled={!canRedo}
+            aria-label="Redo"
+            title="Redo"
+            className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+          >
+            <ArrowUturnRightIcon className="h-5 w-5" />
+          </button>
 
           <button
             onClick={handleAddSubtitle}
