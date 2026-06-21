@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { formatTime } from "../utils/timelineUtils";
+import { formatTime } from "../utils/timeUtils";
 
 interface TimeMarker {
   time: number;

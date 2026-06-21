@@ -12,20 +12,11 @@ import { SubtitleItem } from "./components/SubtitleItem";
 import { EmptyState } from "./components/EmptyState";
 import { KeyboardShortcutsHelp } from "./components/KeyboardShortcutsHelp";
 import { findCurrentSubtitleId } from "./utils/subtitleUtils";
+import { formatTime } from "./utils/timeUtils";
 import type { SubtitleItem as SubtitleItemType } from "@/lib/stores/subtitle-store";
 
 // Spacing between subtitle cards in the virtual list (px)
 const ITEM_GAP = 12;
-
-// Utility functions
-const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const ms = Math.floor((seconds % 1) * 100);
-  return `${mins}:${secs.toString().padStart(2, "0")}.${ms
-    .toString()
-    .padStart(2, "0")}`;
-};
 
 export function SubtitleEditor() {
   // Store hooks

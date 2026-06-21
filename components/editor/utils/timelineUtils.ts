@@ -1,15 +1,5 @@
 import type { SubtitleItem } from "@/lib/stores/subtitle-store";
 
-// Time formatting (mm:ss.ms)
-export const formatTime = (seconds: number): string => {
-  const minutes = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const ms = Math.floor((seconds % 1) * 100);
-  return `${minutes.toString().padStart(2, "0")}:${secs
-    .toString()
-    .padStart(2, "0")}.${ms.toString().padStart(2, "0")}`;
-};
-
 // Compute time from X coordinate
 export const getTimeFromX = (
   x: number,

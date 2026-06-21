@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo } from "react";
-import { formatTime } from "../utils/timelineUtils";
+import { formatTime } from "../utils/timeUtils";
 
 // Time label component
 const TimelineLabel = memo(({ x, label }: { x: number; label: string }) => (

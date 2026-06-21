@@ -1,4 +1,4 @@
-import { formatTime } from "../utils/videoUtils";
+import { formatTime } from "../utils/timeUtils";
 
 interface ProgressBarProps {
   currentTime: number;

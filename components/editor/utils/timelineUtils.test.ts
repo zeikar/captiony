@@ -3,7 +3,6 @@ import {
   arrangeSubtitlesInLayers,
   checkSubtitleOverlap,
   findOverlappingSubtitles,
-  formatTime,
   getTimeFromX,
   getXFromTime,
 } from "./timelineUtils";
@@ -14,14 +13,6 @@ const cue = (id: string, startTime: number, endTime: number): SubtitleItem => ({
   startTime,
   endTime,
   text: "",
-});
-
-describe("formatTime", () => {
-  it("formats as mm:ss.cc with zero-padded centiseconds", () => {
-    expect(formatTime(0)).toBe("00:00.00");
-    expect(formatTime(65.5)).toBe("01:05.50");
-    expect(formatTime(125.25)).toBe("02:05.25");
-  });
 });
 
 describe("coordinate conversion", () => {
