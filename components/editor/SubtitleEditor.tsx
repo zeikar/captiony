@@ -193,9 +193,11 @@ export function SubtitleEditor() {
   useEffect(() => {
     if (!autoScroll || !isPlaying || !currentSubtitleId) return;
     if (currentSubtitleId === selectedSubtitleId) return;
+    // Multi-selection is active — don't collapse it while playback advances.
+    if (selectedIds.length > 1) return;
 
     selectSubtitle(currentSubtitleId);
-  }, [currentSubtitleId, autoScroll, isPlaying, selectedSubtitleId, selectSubtitle]);
+  }, [currentSubtitleId, autoScroll, isPlaying, selectedSubtitleId, selectSubtitle, selectedIds]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 h-full flex flex-col">

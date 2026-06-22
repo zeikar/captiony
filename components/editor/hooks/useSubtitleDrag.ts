@@ -72,6 +72,7 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
     selectSubtitle,
     toggleSubtitleSelection,
     rangeSelectSubtitle,
+    selectedIds,
   } = useSubtitleStore();
 
   const [dragState, setDragState] = useState<DragState>({
@@ -88,6 +89,9 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
   const lastDragUpdateRef = useRef<number>(0);
   // Tracks whether an actual drag occurred (to distinguish from a click)
   const didDragRef = useRef<boolean>(false);
+  // When mousedown lands on an already-selected bar, we defer the single-select
+  // collapse to mouseUp (so a drag preserves the full multi-selection).
+  const pendingCollapseRef = useRef<string | null>(null);
 
   const handleSubtitleMouseDown = useCallback(
     (e: React.MouseEvent, subtitleId: string, handle?: DragHandle) => {
@@ -127,9 +131,17 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
       // Reset at the start of each new drag
       didDragRef.current = false;
 
-      selectSubtitle(subtitleId);
+      if (selectedIds.includes(subtitleId)) {
+        // Already in the (possibly multi-) selection: don't collapse on mousedown.
+        // A drag preserves the whole selection; a plain click collapses to this cue on mouseUp.
+        pendingCollapseRef.current = subtitleId;
+      } else {
+        // Clicking an unselected bar selects just it, then drags (unchanged behavior).
+        selectSubtitle(subtitleId);
+        pendingCollapseRef.current = null;
+      }
     },
-    [subtitles, selectSubtitle, toggleSubtitleSelection, rangeSelectSubtitle]
+    [subtitles, selectSubtitle, toggleSubtitleSelection, rangeSelectSubtitle, selectedIds]
   );
 
   const handleMouseMove = useCallback(
@@ -192,6 +204,12 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
       installClickSuppressor();
     }
 
+    // Plain click on an already-selected bar: collapse multi-selection to just this cue.
+    if (!didDragRef.current && pendingCollapseRef.current) {
+      selectSubtitle(pendingCollapseRef.current);
+    }
+    pendingCollapseRef.current = null;
+
     setDragState({
       isDragging: false,
       draggedSubtitle: null,
@@ -201,7 +219,7 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
       tempSubtitlePosition: null,
     });
     didDragRef.current = false;
-  }, [dragState, updateSubtitle]);
+  }, [dragState, updateSubtitle, selectSubtitle]);
 
   // Register event listeners
   handleMouseMoveRef.current = handleMouseMove;
