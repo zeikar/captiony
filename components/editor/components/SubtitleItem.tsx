@@ -21,7 +21,7 @@ interface SubtitleItemProps {
   onSave: (id: string, text: string) => void;
   onCancel: () => void;
   onDelete: () => void;
-  onSelect: () => void;
+  onSelect: (e: React.MouseEvent) => void;
   onTimeChange: (
     id: string,
     field: "startTime" | "endTime",
@@ -77,8 +77,8 @@ function SubtitleItemComponent({
     }
   };
 
-  const handleSelectClick = () => {
-    if (!isEditing) onSelect();
+  const handleSelectClick = (e: React.MouseEvent) => {
+    if (!isEditing) onSelect(e);
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -146,12 +146,10 @@ function SubtitleItemComponent({
         getDurationBadgeStyle={getDurationBadgeStyle}
         isSelected={isSelected}
         isCurrent={isCurrent}
-        onClick={handleSelectClick}
       />
       <TimeInputs
         subtitle={subtitle}
         onTimeChange={onTimeChange}
-        onSelect={handleSelectClick}
         isEditing={isEditing}
       />
       <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
@@ -162,7 +160,6 @@ function SubtitleItemComponent({
           setEditText={setEditText}
           textareaRef={textareaRef}
           handleKeyDown={handleKeyDown}
-          onSelect={handleSelectClick}
         />
       </div>
       <ActionButtons
@@ -171,7 +168,6 @@ function SubtitleItemComponent({
         onCancel={handleCancelClick}
         onEdit={handleEditClick}
         onDelete={handleDeleteClick}
-        onSelect={handleSelectClick}
       />
       {isSelected && <SelectionIndicator />}
     </div>
@@ -210,7 +206,6 @@ function Header({
   getDurationBadgeStyle,
   isSelected,
   isCurrent,
-  onClick,
 }: {
   subtitle: SubtitleItemType;
   index: number;
@@ -219,12 +214,10 @@ function Header({
   getDurationBadgeStyle: () => string;
   isSelected: boolean;
   isCurrent: boolean;
-  onClick: () => void;
 }) {
   return (
     <div
       className="flex items-center justify-between mb-3 pt-1 cursor-pointer"
-      onClick={onClick}
     >
       <div className="flex items-center gap-2">
         {/* Index Number */}
@@ -273,7 +266,6 @@ function Header({
 function TimeInputs({
   subtitle,
   onTimeChange,
-  onSelect,
   isEditing,
 }: {
   subtitle: SubtitleItemType;
@@ -282,22 +274,14 @@ function TimeInputs({
     field: "startTime" | "endTime",
     value: string
   ) => void;
-  onSelect: () => void;
   isEditing: boolean;
 }) {
-  const handleContainerClick = (e: React.MouseEvent) => {
-    if (!isEditing && e.target === e.currentTarget) {
-      onSelect();
-    }
-  };
-
   const inputClass =
     "w-20 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors";
 
   return (
     <div
       className="flex items-center gap-2 mb-3"
-      onClick={handleContainerClick}
     >
       <div className="flex items-center gap-1">
         <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -338,7 +322,6 @@ function SubtitleText({
   setEditText,
   textareaRef,
   handleKeyDown,
-  onSelect,
 }: {
   isEditing: boolean;
   subtitle: SubtitleItemType;
@@ -346,7 +329,6 @@ function SubtitleText({
   setEditText: (text: string) => void;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  onSelect: () => void;
 }) {
   if (isEditing) {
     return (
@@ -374,7 +356,6 @@ function SubtitleText({
     <div className="mb-2 flex-1" style={{ minHeight: 0, overflow: "hidden" }}>
       <p
         className="text-gray-900 dark:text-white leading-relaxed min-h-[1.5rem] cursor-pointer"
-        onClick={onSelect}
         style={{
           wordWrap: "break-word",
           whiteSpace: "pre-wrap",
@@ -393,25 +374,16 @@ function ActionButtons({
   onCancel,
   onEdit,
   onDelete,
-  onSelect,
 }: {
   isEditing: boolean;
   onSave: (e: React.MouseEvent) => void;
   onCancel: (e: React.MouseEvent) => void;
   onEdit: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent) => void;
-  onSelect: () => void;
 }) {
-  const handleContainerClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget && !isEditing) {
-      onSelect();
-    }
-  };
-
   return (
     <div
       className="flex items-center justify-end gap-1 min-h-[2rem] flex-shrink-0"
-      onClick={handleContainerClick}
     >
       {isEditing ? (
         <>

@@ -29,6 +29,9 @@ export function SubtitleEditor() {
   const updateSubtitle = useSubtitleStore((s) => s.updateSubtitle);
   const deleteSubtitle = useSubtitleStore((s) => s.deleteSubtitle);
   const selectSubtitle = useSubtitleStore((s) => s.selectSubtitle);
+  const selectedIds = useSubtitleStore((s) => s.selectedIds);
+  const toggleSubtitleSelection = useSubtitleStore((s) => s.toggleSubtitleSelection);
+  const rangeSelectSubtitle = useSubtitleStore((s) => s.rangeSelectSubtitle);
   const addSubtitle = useSubtitleStore((s) => s.addSubtitle);
   const setEditingSubtitle = useSubtitleStore((s) => s.setEditingSubtitle);
 
@@ -63,6 +66,8 @@ export function SubtitleEditor() {
     [subtitles, currentTime]
   );
 
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
   const { filteredSubtitles, sortedFilteredSubtitles } = useMemo(() => {
     let filtered = subtitles;
 
@@ -89,19 +94,27 @@ export function SubtitleEditor() {
 
   // Event handlers
   const handleSubtitleSelect = useCallback(
-    (subtitle: SubtitleItemType) => {
-      selectSubtitle(subtitle.id);
-      setCurrentTime(subtitle.startTime);
+    (e: React.MouseEvent, subtitle: SubtitleItemType) => {
+      // Modifier clicks manage selection only — they intentionally do NOT seek the playhead.
+      if (e.metaKey || e.ctrlKey) {
+        toggleSubtitleSelection(subtitle.id);
+      } else if (e.shiftKey) {
+        rangeSelectSubtitle(subtitle.id);
+      } else {
+        selectSubtitle(subtitle.id);
+        setCurrentTime(subtitle.startTime);
+      }
     },
-    [selectSubtitle, setCurrentTime]
+    [selectSubtitle, setCurrentTime, toggleSubtitleSelection, rangeSelectSubtitle]
   );
 
   const handleEdit = useCallback(
     (subtitle: SubtitleItemType) => {
-      handleSubtitleSelect(subtitle);
+      selectSubtitle(subtitle.id);
+      setCurrentTime(subtitle.startTime);
       setEditingSubtitle(subtitle.id);
     },
-    [handleSubtitleSelect, setEditingSubtitle]
+    [selectSubtitle, setCurrentTime, setEditingSubtitle]
   );
 
   const handleSave = useCallback(
@@ -298,14 +311,14 @@ export function SubtitleEditor() {
                 <SubtitleItem
                   subtitle={subtitle}
                   index={index + 1}
-                  isSelected={selectedSubtitleId === subtitle.id}
+                  isSelected={selectedIdSet.has(subtitle.id)}
                   isCurrent={currentSubtitleId === subtitle.id}
                   isEditing={editingSubtitleId === subtitle.id}
                   onEdit={handleEdit}
                   onSave={handleSave}
                   onCancel={handleCancel}
                   onDelete={() => deleteSubtitle(subtitle.id)}
-                  onSelect={() => handleSubtitleSelect(subtitle)}
+                  onSelect={(e) => handleSubtitleSelect(e, subtitle)}
                   onTimeChange={handleTimeChange}
                   formatTime={formatTime}
                 />
