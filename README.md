@@ -1,6 +1,6 @@
 # Captiony
 
-An intuitive and lightweight web-based subtitle editor for YouTube. Open-source, fast, and easy to use. 🎥✍️
+An intuitive and lightweight web-based subtitle editor. Load a local video file or a YouTube link and caption it right in the browser. Open-source, fast, and easy to use. 🎥✍️
 
 ![Captiony Screenshot](.github/screenshots/screenshot.png)
 
@@ -8,9 +8,10 @@ An intuitive and lightweight web-based subtitle editor for YouTube. Open-source,
 
 ### Core Features
 
-- **Video Upload & Playback** - Support for all major video formats
+- **Two Video Sources** - Edit against a local video file (all major formats) or a YouTube link
 - **Timeline-Based Editing** - Visual timeline with drag-and-drop subtitle manipulation
-- **Real-time Preview** - See subtitles overlaid on video as you edit
+- **Real-time Preview** - See subtitles overlaid on the video as you edit
+- **Undo/Redo** - Full history for subtitle edits (`Cmd/Ctrl + Z` / `+ Shift`)
 - **Auto-Save** - Automatic localStorage persistence prevents data loss
 - **Keyboard Shortcuts** - Professional editing workflow with comprehensive shortcuts
 - **Dark Mode** - Beautiful dark/light theme support
@@ -19,6 +20,8 @@ An intuitive and lightweight web-based subtitle editor for YouTube. Open-source,
 
 - **Add & Edit Subtitles** - Create and modify subtitle text with precise timing
 - **Drag & Resize** - Adjust timing by dragging subtitle bars on the timeline
+- **In/Out Points** - Set a subtitle's start (`I`) or end (`O`) to the current playback time
+- **Split** - Split a subtitle at the playhead (`S`)
 - **Timeline Modes**
   - Free mode: Navigate timeline freely
   - Centered mode: Playhead stays centered for easier editing
@@ -83,62 +86,82 @@ bun dev
 
 ### Basic Workflow
 
-1. **Upload Video**: Click "Select Video" to upload your video file
-2. **Add Subtitles**: Click the "+" button or use keyboard shortcuts to add subtitle entries
-3. **Edit Timing**: Drag subtitle bars on the timeline or edit timestamps directly
+1. **Load Video**: Pick a local video file (drag & drop or click) or paste a YouTube link from the empty-state picker. Use "Select Video" in the toolbar to switch sources later.
+2. **Add Subtitles**: Press `N` (or `Cmd/Ctrl + Enter`) to add a subtitle at the current time
+3. **Edit Timing**: Drag subtitle bars on the timeline, set In/Out points with `I`/`O`, or edit timestamps directly
 4. **Edit Text**: Click on subtitle text to edit in the right panel
 5. **Export**: Download your subtitles as SRT or VTT files
 
 ### Keyboard Shortcuts
 
-- `Space` - Play/Pause video
-- `←/→` - Seek backward/forward 5 seconds
-- `Shift + ←/→` - Seek backward/forward 1 second
-- `↑/↓` - Navigate between subtitles
-- `Enter` - Start editing selected subtitle
-- `Delete` - Delete selected subtitle
-- `+/-` - Zoom timeline in/out
-- `?` - Show keyboard shortcuts help
+**Playback**
+
+- `Space` / `K` - Play/Pause
+- `←` / `→` - Jump back / forward 5 seconds
+- `J` / `L` - Jump back / forward 1 second
+
+**Subtitles**
+
+- `N` / `Cmd/Ctrl + Enter` - Add new subtitle at current time
+- `↑` / `↓` - Select previous / next subtitle
+- `M` - Jump to nearest subtitle
+- `Enter` - Edit selected subtitle
+- `Delete` / `Backspace` - Delete selected subtitle
+- `Esc` - Deselect subtitle
+- `I` / `O` - Set In / Out point to current time
+- `S` - Split subtitle at current time
+- `Shift + ←` / `Shift + →` - Nudge selected subtitle left / right (0.1s)
+
+**History**
+
+- `Cmd/Ctrl + Z` - Undo
+- `Cmd/Ctrl + Shift + Z` - Redo
+
+> Click **Shortcuts** in the toolbar for the full list in-app.
 
 ## Project Structure
 
 ```
 app/                      - Next.js App Router pages
-  page.tsx                - Main application page
-  layout.tsx              - Root layout with theme provider
+  page.tsx                - Main application page (NavBar + CaptionEditor)
+  layout.tsx              - Root layout with theme + notification providers
+  api/auth/               - Firebase session-cookie auth routes (scaffolding)
 components/
-  editor/                 - Subtitle editor components
-    CaptionEditor.tsx     - Main editor container
-    VideoPlayer.tsx       - Video playback component
+  editor/                 - Subtitle editor
+    CaptionEditor.tsx     - Main editor container (video + editor + timeline)
+    VideoPlayer.tsx       - Video player with per-source surfaces
     SubtitleTimeline.tsx  - Timeline visualization
-    SubtitleEditor.tsx    - Subtitle text editor
-    ToolBar.tsx           - Import/export toolbar
-    components/           - Granular UI components
-      SubtitleBar.tsx
-      TimelineGrid.tsx
-      TimelinePlayhead.tsx
-      VideoUploader.tsx
-      ...
-  layout/                 - Layout components
-    NavBar.tsx            - Top navigation bar
-  ui/                     - Reusable UI components
-    DarkModeToggle.tsx
+    SubtitleEditor.tsx    - Subtitle list + text editor panel
+    ToolBar.tsx           - Import/export + source-switch toolbar
+    components/           - Granular UI pieces
+      LocalVideoSurface.tsx  - <video> surface (local files)
+      YouTubeSurface.tsx     - react-player surface (YouTube)
+      VideoUploader.tsx      - Empty-state picker (file | YouTube)
+      SubtitleBar.tsx, TimelineGrid.tsx, TimelinePlayhead.tsx, ...
+    hooks/                - Keyboard, drag, timeline, and player hooks
+    utils/                - Time / subtitle / timeline / video helpers
+  layout/NavBar.tsx       - Top navigation bar
+  ui/                     - Reusable UI components (e.g. DarkModeToggle)
+contexts/                 - React Context (toast notifications)
 lib/
   stores/                 - Zustand state management
-    subtitle-store.ts     - Subtitle data and operations
-    video-store.ts        - Video playback state
+    subtitle-store.ts     - Subtitle data, SRT/VTT I/O, undo/redo (zundo)
+    video-store.ts        - Playback state (local + YouTube sources)
+  firebase/               - Web + Admin SDK auth helpers (scaffolding)
   metadata.ts             - SEO metadata configuration
 public/                   - Static assets
 ```
 
 ## Technical Stack
 
-- **Framework**: Next.js 15 (App Router)
+- **Framework**: Next.js 15 (App Router) + React 19
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS 4
-- **State Management**: Zustand with localStorage persistence
-- **UI Components**: Headless UI, Heroicons
+- **State Management**: Zustand (localStorage persistence) + zundo (undo/redo)
+- **Video Playback**: HTML5 `<video>` (local) + react-player 3.x (YouTube)
+- **UI Components**: Headless UI, Heroicons, react-virtuoso (virtualized list)
 - **File Handling**: FileSaver.js
+- **Testing**: Vitest + React Testing Library
 - **Analytics**: Vercel Analytics
 
 ## Key Features in Detail
