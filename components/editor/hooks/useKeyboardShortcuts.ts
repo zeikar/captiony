@@ -7,12 +7,16 @@ import { useVideoStore } from "@/lib/stores/video-store";
 export function useKeyboardShortcuts() {
   const {
     selectedSubtitleId,
+    selectedIds,
     subtitles,
     selectSubtitle,
+    selectAllSubtitles,
+    clearSelection,
     updateSubtitle,
-    deleteSubtitle,
+    deleteSelectedSubtitles,
     addSubtitle,
     setEditingSubtitle,
+    nudgeSelectedSubtitles,
   } = useSubtitleStore();
 
   const { video, setCurrentTime, togglePlayPause, seekTo } = useVideoStore();
@@ -41,6 +45,13 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      // Cmd/Ctrl+A: 전체 자막 선택
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "a") {
+        selectAllSubtitles();
+        e.preventDefault();
+        return;
+      }
+
       switch (e.key) {
         case " ": // Spacebar — play/pause
           e.preventDefault();
@@ -48,13 +59,13 @@ export function useKeyboardShortcuts() {
           break;
         case "Delete":
         case "Backspace":
-          if (selectedSubtitleId) {
-            deleteSubtitle(selectedSubtitleId);
+          if (selectedIds.length > 0) {
+            deleteSelectedSubtitles();
             e.preventDefault();
           }
           break;
         case "Escape":
-          selectSubtitle(null);
+          clearSelection();
           break;
         case "ArrowUp":
           // Select previous subtitle
@@ -103,17 +114,9 @@ export function useKeyboardShortcuts() {
           }
           break;
         case "ArrowLeft":
-          if (e.shiftKey && selectedSubtitleId) {
-            // Shift + Left: shift subtitle earlier in time
-            const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
-            if (subtitle) {
-              const duration = subtitle.endTime - subtitle.startTime;
-              const newStartTime = Math.max(0, subtitle.startTime - 0.1);
-              updateSubtitle(selectedSubtitleId, {
-                startTime: newStartTime,
-                endTime: newStartTime + duration,
-              });
-            }
+          if (e.shiftKey && selectedIds.length > 0) {
+            // Shift + Left: 선택된 모든 자막을 0.1초 앞으로 이동
+            nudgeSelectedSubtitles(-0.1);
             e.preventDefault();
           } else {
             // Left arrow: seek back 5 seconds
@@ -123,17 +126,9 @@ export function useKeyboardShortcuts() {
           }
           break;
         case "ArrowRight":
-          if (e.shiftKey && selectedSubtitleId) {
-            // Shift + Right: shift subtitle later in time
-            const subtitle = subtitles.find((s) => s.id === selectedSubtitleId);
-            if (subtitle) {
-              const duration = subtitle.endTime - subtitle.startTime;
-              const newStartTime = subtitle.startTime + 0.1;
-              updateSubtitle(selectedSubtitleId, {
-                startTime: newStartTime,
-                endTime: newStartTime + duration,
-              });
-            }
+          if (e.shiftKey && selectedIds.length > 0) {
+            // Shift + Right: 선택된 모든 자막을 0.1초 뒤로 이동
+            nudgeSelectedSubtitles(0.1);
             e.preventDefault();
           } else {
             // Right arrow: seek forward 5 seconds
@@ -334,12 +329,16 @@ export function useKeyboardShortcuts() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [
     selectedSubtitleId,
+    selectedIds,
     subtitles,
     selectSubtitle,
+    selectAllSubtitles,
+    clearSelection,
     updateSubtitle,
-    deleteSubtitle,
+    deleteSelectedSubtitles,
     addSubtitle,
     setEditingSubtitle,
+    nudgeSelectedSubtitles,
     video,
     setCurrentTime,
     togglePlayPause,
