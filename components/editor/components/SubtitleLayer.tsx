@@ -5,7 +5,7 @@ import { SubtitleBar } from "./SubtitleBar";
 
 interface SubtitleLayerProps {
   visibleSubtitleLayers: Array<Array<any>>;
-  selectedSubtitleId: string | null;
+  selectedIds: string[];
   tempSubtitlePosition: {
     id: string;
     startTime: number;
@@ -26,7 +26,7 @@ interface SubtitleLayerProps {
 export const SubtitleLayer = memo<SubtitleLayerProps>(
   ({
     visibleSubtitleLayers,
-    selectedSubtitleId,
+    selectedIds,
     tempSubtitlePosition,
     overlapCandidates,
     pixelsPerSecond,
@@ -67,6 +67,8 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
                   }
                 : null;
 
+            const isSelected = selectedIds.includes(subtitle.id);
+
             // Overlap check — computed only when necessary
             const currentPosition = tempPos
               ? { ...subtitle, ...tempPos }
@@ -74,7 +76,7 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
             let hasOverlap = false;
 
             // Only check overlap for dragged or selected subtitles (performance optimization)
-            if (subtitle.id === selectedSubtitleId || tempPos) {
+            if (isSelected || tempPos) {
               const overlappingSubtitles = findOverlappingSubtitles(
                 overlapCandidates,
                 currentPosition
@@ -88,7 +90,7 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
                 subtitle={subtitle}
                 timelineOffset={0} // always 0 — the container itself is translated
                 pixelsPerSecond={pixelsPerSecond}
-                isSelected={subtitle.id === selectedSubtitleId}
+                isSelected={isSelected}
                 tempPosition={tempPos}
                 layerIndex={layerIndex}
                 hasOverlap={hasOverlap}

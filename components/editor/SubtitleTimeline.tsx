@@ -32,7 +32,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
     setTimelineOffset,
     setTimelineScale,
     setTimelineMode,
-    selectedSubtitleId,
+    selectedIds,
     selectSubtitle,
     addSubtitle,
   } = useSubtitleStore();
@@ -317,7 +317,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
           {/* Subtitle bars */}
           <SubtitleLayer
             visibleSubtitleLayers={visibleSubtitleLayers}
-            selectedSubtitleId={selectedSubtitleId}
+            selectedIds={selectedIds}
             tempSubtitlePosition={tempSubtitlePosition}
             overlapCandidates={overlapCandidates}
             pixelsPerSecond={pixelsPerSecond}

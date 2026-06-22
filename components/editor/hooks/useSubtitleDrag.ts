@@ -23,6 +23,20 @@ const DRAG_UPDATE_INTERVAL_MS = 8; // ~120fps
 const DRAG_CLICK_THRESHOLD_PX = 2; // distinguish click vs drag
 const MIN_SUBTITLE_DURATION = 0.1; // seconds
 
+// Suppresses the next document-level click in capture phase (once).
+// Used to prevent synthetic clicks after mousedown-only interactions (modifier-click, post-drag)
+// from bubbling to the timeline root and accidentally seeking the playhead.
+function installClickSuppressor() {
+  document.addEventListener(
+    "click",
+    (ev) => {
+      ev.stopPropagation();
+      ev.preventDefault();
+    },
+    { capture: true, once: true }
+  );
+}
+
 function computeNewTimes(
   original: { startTime: number; endTime: number },
   deltaTime: number,
@@ -52,7 +66,13 @@ function computeNewTimes(
 }
 
 export function useSubtitleDrag(pixelsPerSecond: number) {
-  const { subtitles, updateSubtitle, selectSubtitle } = useSubtitleStore();
+  const {
+    subtitles,
+    updateSubtitle,
+    selectSubtitle,
+    toggleSubtitleSelection,
+    rangeSelectSubtitle,
+  } = useSubtitleStore();
 
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
@@ -74,6 +94,21 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
       e.preventDefault();
       e.stopPropagation();
 
+      // Modifier-click: select without starting a drag
+      if (e.metaKey || e.ctrlKey) {
+        toggleSubtitleSelection(subtitleId);
+        // Suppress the trailing synthetic click so it doesn't seek the playhead
+        installClickSuppressor();
+        return;
+      }
+
+      if (e.shiftKey) {
+        rangeSelectSubtitle(subtitleId);
+        // Suppress the trailing synthetic click so it doesn't seek the playhead
+        installClickSuppressor();
+        return;
+      }
+
       const subtitle = subtitles.find((s) => s.id === subtitleId);
       if (!subtitle) return;
 
@@ -94,7 +129,7 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
 
       selectSubtitle(subtitleId);
     },
-    [subtitles, selectSubtitle]
+    [subtitles, selectSubtitle, toggleSubtitleSelection, rangeSelectSubtitle]
   );
 
   const handleMouseMove = useCallback(
@@ -154,14 +189,7 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
     // Suppress the click event fired immediately after a drag so it does not
     // propagate to the timeline and accidentally move the current time
     if (didDragRef.current) {
-      const suppressNextClick = (e: MouseEvent) => {
-        e.stopPropagation();
-        e.preventDefault();
-      };
-      document.addEventListener("click", suppressNextClick, {
-        capture: true,
-        once: true,
-      });
+      installClickSuppressor();
     }
 
     setDragState({
