@@ -9,6 +9,7 @@ import { useVideoStore } from "@/lib/stores/video-store";
 export function seedSubtitleStore(subtitles: SubtitleItem[]) {
   useSubtitleStore.setState({
     subtitles: subtitles.map((s) => ({ ...s })),
+    selectedIds: [],
     selectedSubtitleId: null,
     editingSubtitleId: null,
   });

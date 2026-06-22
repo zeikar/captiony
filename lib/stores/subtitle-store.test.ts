@@ -13,6 +13,7 @@ const timing = (subs: SubtitleItem[]) =>
 beforeEach(() => {
   useSubtitleStore.setState({
     subtitles: seed.map((s) => ({ ...s })),
+    selectedIds: [],
     selectedSubtitleId: null,
     editingSubtitleId: null,
   });
@@ -157,6 +158,148 @@ describe("deleteSubtitle", () => {
   });
 });
 
+describe("multi-selection", () => {
+  it("selectSubtitle sets selectedIds to [id] and the anchor", () => {
+    useSubtitleStore.getState().selectSubtitle("a");
+    const state = useSubtitleStore.getState();
+    expect(state.selectedIds).toEqual(["a"]);
+    expect(state.selectedSubtitleId).toBe("a");
+  });
+
+  it("toggleSubtitleSelection adds an id then removes it and updates the anchor", () => {
+    // Start with anchor "a"
+    useSubtitleStore.getState().selectSubtitle("a");
+
+    // Toggle "b" in — anchor moves to "b" (last added)
+    useSubtitleStore.getState().toggleSubtitleSelection("b");
+    expect(useSubtitleStore.getState().selectedIds).toEqual(["a", "b"]);
+    expect(useSubtitleStore.getState().selectedSubtitleId).toBe("b");
+
+    // Toggle "b" out — anchor falls back to the remaining id "a"
+    useSubtitleStore.getState().toggleSubtitleSelection("b");
+    expect(useSubtitleStore.getState().selectedIds).toEqual(["a"]);
+    expect(useSubtitleStore.getState().selectedSubtitleId).toBe("a");
+  });
+
+  it("rangeSelectSubtitle from anchor 'a' to 'b' yields the start-time-ordered inclusive range", () => {
+    // Establish anchor "a" (startTime 2.5)
+    useSubtitleStore.getState().selectSubtitle("a");
+    // Range-select "b" (startTime 6.0) — both are in the seed
+    useSubtitleStore.getState().rangeSelectSubtitle("b");
+    const state = useSubtitleStore.getState();
+    // Both ids should be in the range, ordered by startTime ascending
+    expect(state.selectedIds).toEqual(["a", "b"]);
+    expect(state.selectedSubtitleId).toBe("b");
+  });
+
+  it("selectAllSubtitles selects every id in the store", () => {
+    useSubtitleStore.getState().selectAllSubtitles();
+    const state = useSubtitleStore.getState();
+    const allIds = seed.map((s) => s.id);
+    expect(state.selectedIds).toEqual(allIds);
+  });
+
+  it("clearSelection empties selectedIds and sets anchor to null", () => {
+    useSubtitleStore.getState().selectSubtitle("a");
+    useSubtitleStore.getState().clearSelection();
+    const state = useSubtitleStore.getState();
+    expect(state.selectedIds).toEqual([]);
+    expect(state.selectedSubtitleId).toBeNull();
+  });
+});
+
+describe("bulk mutations", () => {
+  it("deleteSelectedSubtitles removes all selected cues and resets selection", () => {
+    useSubtitleStore.getState().selectSubtitle("a");
+    useSubtitleStore.getState().toggleSubtitleSelection("b");
+    useSubtitleStore.getState().deleteSelectedSubtitles();
+    const state = useSubtitleStore.getState();
+    expect(state.subtitles.map((s) => s.id)).toEqual([]);
+    expect(state.selectedIds).toEqual([]);
+    expect(state.selectedSubtitleId).toBeNull();
+  });
+
+  it("nudgeSelectedSubtitles(+0.1) shifts only selected cues' startTime and endTime", () => {
+    useSubtitleStore.getState().selectSubtitle("a");
+    useSubtitleStore.getState().nudgeSelectedSubtitles(0.1);
+    const state = useSubtitleStore.getState();
+    const a = state.subtitles.find((s) => s.id === "a")!;
+    const b = state.subtitles.find((s) => s.id === "b")!;
+    // "a" was startTime: 2.5, endTime: 5.0 — both shift by +0.1
+    expect(a.startTime).toBeCloseTo(2.6);
+    expect(a.endTime).toBeCloseTo(5.1);
+    // "b" is unselected — unchanged
+    expect(b.startTime).toBe(6.0);
+    expect(b.endTime).toBe(9.5);
+  });
+
+  it("nudgeSelectedSubtitles(-100) clamps startTime to 0 and preserves duration", () => {
+    useSubtitleStore.getState().selectSubtitle("a");
+    // seed "a": startTime 2.5, endTime 5.0, duration 2.5
+    useSubtitleStore.getState().nudgeSelectedSubtitles(-100);
+    const a = useSubtitleStore.getState().subtitles.find((s) => s.id === "a")!;
+    expect(a.startTime).toBe(0);
+    expect(a.endTime).toBeCloseTo(2.5); // duration preserved
+  });
+});
+
+describe("anchor invariants on removal", () => {
+  it("deleteSubtitle('a') with selectedIds=['a','b'] leaves anchor 'b'", () => {
+    useSubtitleStore.getState().selectSubtitle("a");
+    useSubtitleStore.getState().toggleSubtitleSelection("b");
+    useSubtitleStore.getState().deleteSubtitle("a");
+    const state = useSubtitleStore.getState();
+    expect(state.selectedIds).toEqual(["b"]);
+    expect(state.selectedSubtitleId).toBe("b");
+  });
+
+  it("toggleSubtitleSelection removing the anchor from a 2-item set re-points to the remaining id", () => {
+    useSubtitleStore.getState().selectSubtitle("a");
+    useSubtitleStore.getState().toggleSubtitleSelection("b");
+    // anchor is now "b"; toggle "b" out — anchor must re-point to "a"
+    useSubtitleStore.getState().toggleSubtitleSelection("b");
+    const state = useSubtitleStore.getState();
+    expect(state.selectedIds).toEqual(["a"]);
+    expect(state.selectedSubtitleId).toBe("a");
+  });
+
+  it("deleting the only selected id yields selectedIds=[] and anchor null", () => {
+    useSubtitleStore.getState().selectSubtitle("a");
+    useSubtitleStore.getState().deleteSubtitle("a");
+    const state = useSubtitleStore.getState();
+    expect(state.selectedIds).toEqual([]);
+    expect(state.selectedSubtitleId).toBeNull();
+  });
+
+  it("toggling away the last selected id yields selectedIds=[] and anchor null", () => {
+    useSubtitleStore.getState().selectSubtitle("a");
+    useSubtitleStore.getState().toggleSubtitleSelection("a");
+    const state = useSubtitleStore.getState();
+    expect(state.selectedIds).toEqual([]);
+    expect(state.selectedSubtitleId).toBeNull();
+  });
+});
+
+describe("importSubtitles selection reset", () => {
+  it("clears selectedIds and anchor after importing a fresh payload", () => {
+    // Pre-select a cue from the seed
+    useSubtitleStore.getState().selectSubtitle("a");
+    expect(useSubtitleStore.getState().selectedSubtitleId).toBe("a");
+
+    // Import replaces all subtitles with new ones
+    useSubtitleStore
+      .getState()
+      .importSubtitles(
+        "1\n00:00:01,000 --> 00:00:02,000\nFresh\n",
+        "new.srt"
+      );
+
+    const state = useSubtitleStore.getState();
+    expect(state.selectedIds).toEqual([]);
+    expect(state.selectedSubtitleId).toBeNull();
+  });
+});
+
 describe("clearAllSubtitles", () => {
   it("empties the list and resets selection and editing state", () => {
     useSubtitleStore.getState().selectSubtitle("a");
@@ -248,5 +391,30 @@ describe("temporal history", () => {
     const restored = useSubtitleStore.getState().subtitles;
     expect(restored).toHaveLength(2);
     expect(timing(restored)).toEqual(timing(seed));
+  });
+
+  it("undo after selectAll+deleteSelectedSubtitles restores subtitles AND the exact prior selection", () => {
+    // Select all — UI-only, no history recorded
+    useSubtitleStore.getState().selectAllSubtitles();
+    const allIds = seed.map((s) => s.id);
+    expect(useSubtitleStore.getState().selectedIds).toEqual(allIds);
+
+    // Capture the anchor as assigned by selectAllSubtitles (convention-independent)
+    const anchorBeforeDelete = useSubtitleStore.getState().selectedSubtitleId;
+
+    // deleteSelectedSubtitles is a real mutation — leading edge fires, records one entry
+    useSubtitleStore.getState().deleteSelectedSubtitles();
+    expect(useSubtitleStore.getState().subtitles).toHaveLength(0);
+    expect(useSubtitleStore.temporal.getState().pastStates.length).toBe(1);
+
+    // Undo: restores subtitles AND the selection that was captured in the snapshot
+    useSubtitleStore.temporal.getState().undo();
+
+    const state = useSubtitleStore.getState();
+    // Subtitles restored
+    expect(timing(state.subtitles)).toEqual(timing(seed));
+    // selectedIds and anchor also restored from snapshot (proves selectedIds is in temporal partialize)
+    expect(state.selectedIds).toEqual(allIds);
+    expect(state.selectedSubtitleId).toBe(anchorBeforeDelete);
   });
 });

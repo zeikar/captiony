@@ -110,4 +110,59 @@ describe("useKeyboardShortcuts", () => {
     fireEvent.keyDown(input, { key: "z", metaKey: true });
     expect(textOf("a")).toBe("Edited");
   });
+
+  it("Cmd/Ctrl+A selects all subtitles", () => {
+    render(<Host />);
+    fireEvent.keyDown(document.body, { key: "a", metaKey: true });
+    expect(useSubtitleStore.getState().selectedIds).toHaveLength(
+      dummySubtitles.length
+    );
+  });
+
+  it("Escape clears the multi-selection", () => {
+    render(<Host />);
+    act(() => {
+      useSubtitleStore.getState().selectSubtitle("a");
+      useSubtitleStore.getState().toggleSubtitleSelection("b");
+    });
+    expect(useSubtitleStore.getState().selectedIds).toHaveLength(2);
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(useSubtitleStore.getState().selectedIds).toEqual([]);
+    expect(useSubtitleStore.getState().selectedSubtitleId).toBeNull();
+  });
+
+  it("Delete with multiple selected removes all of them", () => {
+    render(<Host />);
+    act(() => {
+      useSubtitleStore.getState().selectSubtitle("a");
+      useSubtitleStore.getState().toggleSubtitleSelection("b");
+    });
+
+    fireEvent.keyDown(document.body, { key: "Delete" });
+    expect(ids()).not.toContain("a");
+    expect(ids()).not.toContain("b");
+  });
+
+  it("Shift+ArrowRight shifts every selected cue by +0.1s", () => {
+    render(<Host />);
+    act(() => {
+      useSubtitleStore.getState().selectSubtitle("a");
+      useSubtitleStore.getState().toggleSubtitleSelection("b");
+    });
+
+    const before = {
+      a: { startTime: dummySubtitles[0].startTime, endTime: dummySubtitles[0].endTime },
+      b: { startTime: dummySubtitles[1].startTime, endTime: dummySubtitles[1].endTime },
+    };
+
+    fireEvent.keyDown(document.body, { key: "ArrowRight", shiftKey: true });
+
+    const stateA = useSubtitleStore.getState().subtitles.find((s) => s.id === "a")!;
+    const stateB = useSubtitleStore.getState().subtitles.find((s) => s.id === "b")!;
+    expect(stateA.startTime).toBeCloseTo(before.a.startTime + 0.1);
+    expect(stateA.endTime).toBeCloseTo(before.a.endTime + 0.1);
+    expect(stateB.startTime).toBeCloseTo(before.b.startTime + 0.1);
+    expect(stateB.endTime).toBeCloseTo(before.b.endTime + 0.1);
+  });
 });
