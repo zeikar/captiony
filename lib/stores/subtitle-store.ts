@@ -18,7 +18,8 @@ export type TimelineMode = "free" | "centered";
 interface SubtitleStore {
   // Subtitle state
   subtitles: SubtitleItem[];
-  selectedSubtitleId: string | null;
+  selectedIds: string[]; // full set of selected subtitle ids
+  selectedSubtitleId: string | null; // anchor: last-clicked id, target for single-target ops; null iff selectedIds is empty
   editingSubtitleId: string | null;
 
   // Timeline state
@@ -31,6 +32,12 @@ interface SubtitleStore {
   updateSubtitle: (id: string, updates: Partial<SubtitleItem>) => void;
   deleteSubtitle: (id: string) => void;
   selectSubtitle: (id: string | null) => void;
+  toggleSubtitleSelection: (id: string) => void;
+  rangeSelectSubtitle: (id: string) => void;
+  selectAllSubtitles: () => void;
+  clearSelection: () => void;
+  deleteSelectedSubtitles: () => void;
+  nudgeSelectedSubtitles: (deltaSeconds: number) => void;
   setEditingSubtitle: (id: string | null) => void;
 
   setTimelineScale: (scale: number) => void;
@@ -82,6 +89,7 @@ export const useSubtitleStore = create<SubtitleStore>()(
       text: "Export your finished subtitles as SRT files!",
     },
   ],
+  selectedIds: [],
   selectedSubtitleId: null,
   editingSubtitleId: null,
 
@@ -124,13 +132,88 @@ export const useSubtitleStore = create<SubtitleStore>()(
     }),
 
   deleteSubtitle: (id) =>
-    set((state) => ({
-      subtitles: state.subtitles.filter((sub) => sub.id !== id),
-      selectedSubtitleId:
-        state.selectedSubtitleId === id ? null : state.selectedSubtitleId,
-    })),
+    set((state) => {
+      const newSubtitles = state.subtitles.filter((sub) => sub.id !== id);
+      const newSelectedIds = state.selectedIds.filter((sid) => sid !== id);
+      return {
+        subtitles: newSubtitles,
+        selectedIds: newSelectedIds,
+        selectedSubtitleId: resolveAnchor(state.selectedSubtitleId, newSelectedIds),
+      };
+    }),
 
-  selectSubtitle: (selectedSubtitleId) => set({ selectedSubtitleId }),
+  selectSubtitle: (id) =>
+    set(
+      id !== null
+        ? { selectedSubtitleId: id, selectedIds: [id] }
+        : { selectedSubtitleId: null, selectedIds: [] }
+    ),
+
+  toggleSubtitleSelection: (id) =>
+    set((state) => {
+      const isSelected = state.selectedIds.includes(id);
+      if (isSelected) {
+        const newSelectedIds = state.selectedIds.filter((sid) => sid !== id);
+        return { selectedIds: newSelectedIds, selectedSubtitleId: resolveAnchor(state.selectedSubtitleId, newSelectedIds) };
+      } else {
+        return { selectedIds: [...state.selectedIds, id], selectedSubtitleId: id };
+      }
+    }),
+
+  rangeSelectSubtitle: (id) =>
+    set((state) => {
+      if (!state.selectedSubtitleId) {
+        // No anchor — fall back to single select
+        return { selectedSubtitleId: id, selectedIds: [id] };
+      }
+      const anchor = state.selectedSubtitleId;
+      const sorted = [...state.subtitles].sort((a, b) => a.startTime - b.startTime);
+      const anchorIdx = sorted.findIndex((s) => s.id === anchor);
+      const targetIdx = sorted.findIndex((s) => s.id === id);
+      if (anchorIdx === -1 || targetIdx === -1) {
+        return { selectedSubtitleId: id, selectedIds: [id] };
+      }
+      const lo = Math.min(anchorIdx, targetIdx);
+      const hi = Math.max(anchorIdx, targetIdx);
+      const rangeIds = sorted.slice(lo, hi + 1).map((s) => s.id);
+      // The prior anchor was the pivot for this range; the new anchor follows the
+      // most-recently-clicked id (so the next Shift-click pivots from here) because the
+      // anchor doubles as the single-target pointer (Enter/I/O/S ops).
+      return { selectedIds: rangeIds, selectedSubtitleId: id };
+    }),
+
+  selectAllSubtitles: () =>
+    set((state) => {
+      const allIds = state.subtitles.map((s) => s.id);
+      return { selectedIds: allIds, selectedSubtitleId: resolveAnchor(state.selectedSubtitleId, allIds) };
+    }),
+
+  clearSelection: () => set({ selectedSubtitleId: null, selectedIds: [] }),
+
+  deleteSelectedSubtitles: () =>
+    set((state) => {
+      if (state.selectedIds.length === 0) return state;
+      const idSet = new Set(state.selectedIds);
+      return {
+        subtitles: state.subtitles.filter((s) => !idSet.has(s.id)),
+        selectedIds: [],
+        selectedSubtitleId: null,
+      };
+    }),
+
+  nudgeSelectedSubtitles: (deltaSeconds) =>
+    set((state) => {
+      if (state.selectedIds.length === 0) return state;
+      const idSet = new Set(state.selectedIds);
+      return {
+        subtitles: state.subtitles.map((s) => {
+          if (!idSet.has(s.id)) return s;
+          const duration = s.endTime - s.startTime;
+          const newStartTime = Math.max(0, s.startTime + deltaSeconds);
+          return { ...s, startTime: newStartTime, endTime: newStartTime + duration };
+        }),
+      };
+    }),
 
   setEditingSubtitle: (editingSubtitleId) => set({ editingSubtitleId }),
 
@@ -191,12 +274,13 @@ export const useSubtitleStore = create<SubtitleStore>()(
       subtitles = parseSRT(content);
     }
 
-    set({ subtitles });
+    set({ subtitles, selectedIds: [], selectedSubtitleId: null, editingSubtitleId: null });
   },
 
   clearAllSubtitles: () =>
     set({
       subtitles: [],
+      selectedIds: [],
       selectedSubtitleId: null,
       editingSubtitleId: null,
     }),
@@ -204,10 +288,12 @@ export const useSubtitleStore = create<SubtitleStore>()(
       {
         // History snapshot holds subtitle data plus the UI selection/editing IDs so that
         // undo restores a coherent context (no dangling references to removed subtitles).
-        // Equality is still gated on the subtitles array reference only — UI-only setters
-        // (selectSubtitle, setEditingSubtitle, timeline) still do NOT record history.
+        // selectedIds is snapshotted so that subtitle-mutating actions (delete/nudge) restore
+        // a coherent selection on undo. Equality is still gated on the subtitles array reference
+        // only, so pure selection changes (toggle/range/selectAll/clear) do NOT record history.
         partialize: (state) => ({
           subtitles: state.subtitles,
+          selectedIds: state.selectedIds,
           selectedSubtitleId: state.selectedSubtitleId,
           editingSubtitleId: state.editingSubtitleId,
         }),
@@ -226,6 +312,13 @@ export const useSubtitleStore = create<SubtitleStore>()(
     }
   )
 );
+
+// Anchor-resolution rule: keep the prior anchor if it is still in the remaining set;
+// otherwise fall back to the last id in the set; null when the set is empty.
+function resolveAnchor(currentAnchor: string | null, remaining: string[]): string | null {
+  if (currentAnchor !== null && remaining.includes(currentAnchor)) return currentAnchor;
+  return remaining.length > 0 ? remaining[remaining.length - 1] : null;
+}
 
 // Fires fn synchronously on the FIRST call in a window, then suppresses further
 // calls until waitMs of quiet elapses (leading-edge only — no trailing invocation).
