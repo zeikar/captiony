@@ -206,8 +206,10 @@ export const useSubtitleStore = create<SubtitleStore>()(
       if (state.selectedIds.length === 0) return state;
       const idSet = new Set(state.selectedIds);
       // Clamp the whole group by the earliest selected cue so the relative spacing
-      // is preserved. A per-cue floor at 0 would desync the group on a large leftward
-      // move (e.g. a multi-bar drag), which is why drag commits route through here too.
+      // is preserved: a multi-selection moves as a unit and stops together at 0.
+      // A per-cue floor at 0 would desync the group on a large leftward move. Both
+      // the keyboard Shift+nudge and the multi-bar drag commit route through here,
+      // so they intentionally share this group-as-a-unit behavior.
       const minStart = Math.min(
         ...state.subtitles.filter((s) => idSet.has(s.id)).map((s) => s.startTime)
       );

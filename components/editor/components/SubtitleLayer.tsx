@@ -43,6 +43,18 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
         { startTime: t.startTime, endTime: t.endTime },
       ])
     );
+
+    // Overlap candidates must reflect LIVE positions: while a group drags, every
+    // moving bar shifts, so checking against their original positions would flag
+    // stale (ghost) overlaps. Apply each dragged bar's temp position to the pool.
+    const effectiveOverlapCandidates =
+      tempSubtitlePositions.length > 0
+        ? overlapCandidates.map((c) => {
+            const t = tempPosById.get(c.id);
+            return t ? { ...c, startTime: t.startTime, endTime: t.endTime } : c;
+          })
+        : overlapCandidates;
+
     return (
       <div
         className="absolute top-8 left-0 w-full"
@@ -80,7 +92,7 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
             // Only check overlap for dragged or selected subtitles (performance optimization)
             if (isSelected || tempPos) {
               const overlappingSubtitles = findOverlappingSubtitles(
-                overlapCandidates,
+                effectiveOverlapCandidates,
                 currentPosition
               );
               hasOverlap = overlappingSubtitles.length > 0;

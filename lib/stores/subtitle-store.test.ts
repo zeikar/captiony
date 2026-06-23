@@ -257,6 +257,18 @@ describe("bulk mutations", () => {
     expect(b.startTime).toBeCloseTo(3.5);
     expect(b.endTime).toBeCloseTo(7.0);
   });
+
+  it("nudgeSelectedSubtitles blocks the whole group once the earliest cue hits 0", () => {
+    // Move the group to the boundary first (a → 0), then nudge left again.
+    useSubtitleStore.getState().selectSubtitle("a");
+    useSubtitleStore.getState().toggleSubtitleSelection("b");
+    useSubtitleStore.getState().nudgeSelectedSubtitles(-100); // a → 0, b → 3.5
+    const before = useSubtitleStore.getState().subtitles;
+    useSubtitleStore.getState().nudgeSelectedSubtitles(-0.1); // already at 0 → no-op
+    const after = useSubtitleStore.getState().subtitles;
+    // Group stays put (and returns the same array ref, so no history is recorded).
+    expect(after).toBe(before);
+  });
 });
 
 describe("anchor invariants on removal", () => {
