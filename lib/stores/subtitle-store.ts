@@ -205,13 +205,20 @@ export const useSubtitleStore = create<SubtitleStore>()(
     set((state) => {
       if (state.selectedIds.length === 0) return state;
       const idSet = new Set(state.selectedIds);
+      // Clamp the whole group by the earliest selected cue so the relative spacing
+      // is preserved. A per-cue floor at 0 would desync the group on a large leftward
+      // move (e.g. a multi-bar drag), which is why drag commits route through here too.
+      const minStart = Math.min(
+        ...state.subtitles.filter((s) => idSet.has(s.id)).map((s) => s.startTime)
+      );
+      const clamped = Math.max(deltaSeconds, -minStart);
+      if (clamped === 0) return state; // fully clamped or zero — no movement, no history
       return {
-        subtitles: state.subtitles.map((s) => {
-          if (!idSet.has(s.id)) return s;
-          const duration = s.endTime - s.startTime;
-          const newStartTime = Math.max(0, s.startTime + deltaSeconds);
-          return { ...s, startTime: newStartTime, endTime: newStartTime + duration };
-        }),
+        subtitles: state.subtitles.map((s) =>
+          idSet.has(s.id)
+            ? { ...s, startTime: s.startTime + clamped, endTime: s.endTime + clamped }
+            : s
+        ),
       };
     }),
 

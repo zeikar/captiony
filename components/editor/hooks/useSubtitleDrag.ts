@@ -5,17 +5,23 @@ import { useSubtitleStore } from "@/lib/stores/subtitle-store";
 
 type DragHandle = "start" | "end" | null;
 
+interface SubtitlePosition {
+  id: string;
+  startTime: number;
+  endTime: number;
+}
+
 interface DragState {
   isDragging: boolean;
   draggedSubtitle: string | null;
   resizeHandle: DragHandle;
   dragStart: { x: number; y: number };
   originalSubtitlePosition: { startTime: number; endTime: number } | null;
-  tempSubtitlePosition: {
-    id: string;
-    startTime: number;
-    endTime: number;
-  } | null;
+  // Live preview positions for the bars being moved this drag. One entry for a
+  // single move/resize; one per selected cue for a multi-selection group move.
+  tempSubtitlePositions: SubtitlePosition[];
+  // Original positions of every cue in a group move (null for single move/resize).
+  groupOriginals: SubtitlePosition[] | null;
 }
 
 // Tunable constants
@@ -72,6 +78,7 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
     selectSubtitle,
     toggleSubtitleSelection,
     rangeSelectSubtitle,
+    nudgeSelectedSubtitles,
     selectedIds,
   } = useSubtitleStore();
 
@@ -81,7 +88,8 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
     resizeHandle: null,
     dragStart: { x: 0, y: 0 },
     originalSubtitlePosition: null,
-    tempSubtitlePosition: null,
+    tempSubtitlePositions: [],
+    groupOriginals: null,
   });
 
   const handleMouseMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
@@ -116,6 +124,20 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
       const subtitle = subtitles.find((s) => s.id === subtitleId);
       if (!subtitle) return;
 
+      // Group move: a body drag (not a resize) on a bar that's part of a
+      // multi-selection moves every selected cue together.
+      const isGroupMove =
+        !handle && selectedIds.length > 1 && selectedIds.includes(subtitleId);
+      const groupOriginals: SubtitlePosition[] | null = isGroupMove
+        ? subtitles
+            .filter((s) => selectedIds.includes(s.id))
+            .map((s) => ({
+              id: s.id,
+              startTime: s.startTime,
+              endTime: s.endTime,
+            }))
+        : null;
+
       setDragState({
         isDragging: true,
         draggedSubtitle: subtitleId,
@@ -125,7 +147,8 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
           startTime: subtitle.startTime,
           endTime: subtitle.endTime,
         },
-        tempSubtitlePosition: null,
+        tempSubtitlePositions: [],
+        groupOriginals,
       });
 
       // Reset at the start of each new drag
@@ -152,6 +175,7 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
         originalSubtitlePosition,
         dragStart,
         resizeHandle,
+        groupOriginals,
       } = dragState;
 
       if (!isDragging || !draggedSubtitle || !originalSubtitlePosition) return;
@@ -164,20 +188,31 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
       const deltaX = e.clientX - dragStart.x;
       const deltaTime = deltaX / pixelsPerSecond;
 
-      const { newStartTime, newEndTime } = computeNewTimes(
-        originalSubtitlePosition,
-        deltaTime,
-        resizeHandle
-      );
+      let tempPositions: SubtitlePosition[];
+      if (groupOriginals) {
+        // Group move: clamp the whole group by the earliest cue so spacing is kept.
+        const minStart = Math.min(...groupOriginals.map((o) => o.startTime));
+        const clampedDelta = Math.max(deltaTime, -minStart);
+        tempPositions = groupOriginals.map((o) => ({
+          id: o.id,
+          startTime: o.startTime + clampedDelta,
+          endTime: o.endTime + clampedDelta,
+        }));
+      } else {
+        const { newStartTime, newEndTime } = computeNewTimes(
+          originalSubtitlePosition,
+          deltaTime,
+          resizeHandle
+        );
+        tempPositions = [
+          { id: draggedSubtitle, startTime: newStartTime, endTime: newEndTime },
+        ];
+      }
 
-      // During drag only update tempSubtitlePosition; store is updated on mouseUp
+      // During drag only update the preview; the store is committed on mouseUp
       setDragState((prev) => ({
         ...prev,
-        tempSubtitlePosition: {
-          id: draggedSubtitle,
-          startTime: newStartTime,
-          endTime: newEndTime,
-        },
+        tempSubtitlePositions: tempPositions,
       }));
 
       // Mark as dragged once movement exceeds the click threshold
@@ -189,13 +224,28 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
   );
 
   const handleMouseUp = useCallback(() => {
-    const { tempSubtitlePosition, draggedSubtitle } = dragState;
+    const { tempSubtitlePositions, draggedSubtitle, groupOriginals } = dragState;
 
-    if (tempSubtitlePosition && draggedSubtitle) {
-      updateSubtitle(draggedSubtitle, {
-        startTime: tempSubtitlePosition.startTime,
-        endTime: tempSubtitlePosition.endTime,
-      });
+    if (tempSubtitlePositions.length > 0 && draggedSubtitle) {
+      if (groupOriginals) {
+        // Group move: derive the applied (already-clamped) delta from the dragged
+        // bar and shift every selected cue by it in one history step.
+        const draggedTemp = tempSubtitlePositions.find(
+          (t) => t.id === draggedSubtitle
+        );
+        const draggedOrig = groupOriginals.find((o) => o.id === draggedSubtitle);
+        const delta =
+          draggedTemp && draggedOrig
+            ? draggedTemp.startTime - draggedOrig.startTime
+            : 0;
+        if (delta !== 0) nudgeSelectedSubtitles(delta);
+      } else {
+        const t = tempSubtitlePositions[0];
+        updateSubtitle(draggedSubtitle, {
+          startTime: t.startTime,
+          endTime: t.endTime,
+        });
+      }
     }
 
     // Suppress the click event fired immediately after a drag so it does not
@@ -216,10 +266,11 @@ export function useSubtitleDrag(pixelsPerSecond: number) {
       resizeHandle: null,
       dragStart: { x: 0, y: 0 },
       originalSubtitlePosition: null,
-      tempSubtitlePosition: null,
+      tempSubtitlePositions: [],
+      groupOriginals: null,
     });
     didDragRef.current = false;
-  }, [dragState, updateSubtitle, selectSubtitle]);
+  }, [dragState, updateSubtitle, selectSubtitle, nudgeSelectedSubtitles]);
 
   // Register event listeners
   handleMouseMoveRef.current = handleMouseMove;

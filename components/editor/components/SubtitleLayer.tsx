@@ -6,11 +6,11 @@ import { SubtitleBar } from "./SubtitleBar";
 interface SubtitleLayerProps {
   visibleSubtitleLayers: Array<Array<any>>;
   selectedIds: string[];
-  tempSubtitlePosition: {
+  tempSubtitlePositions: Array<{
     id: string;
     startTime: number;
     endTime: number;
-  } | null;
+  }>;
   overlapCandidates: any[];
   pixelsPerSecond: number;
   subtitleContainerTransform: string;
@@ -27,7 +27,7 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
   ({
     visibleSubtitleLayers,
     selectedIds,
-    tempSubtitlePosition,
+    tempSubtitlePositions,
     overlapCandidates,
     pixelsPerSecond,
     subtitleContainerTransform,
@@ -35,6 +35,14 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
     onMouseDown,
     findOverlappingSubtitles,
   }) => {
+    // O(1) per-bar lookup of this drag's preview positions (one entry for a
+    // single move/resize; one per cue for a multi-selection group move).
+    const tempPosById = new Map(
+      tempSubtitlePositions.map((t) => [
+        t.id,
+        { startTime: t.startTime, endTime: t.endTime },
+      ])
+    );
     return (
       <div
         className="absolute top-8 left-0 w-full"
@@ -59,13 +67,7 @@ export const SubtitleLayer = memo<SubtitleLayerProps>(
             if (subtitle.endTime < 0) return null;
 
             // Check for temporary drag position
-            const tempPos =
-              tempSubtitlePosition && tempSubtitlePosition.id === subtitle.id
-                ? {
-                    startTime: tempSubtitlePosition.startTime,
-                    endTime: tempSubtitlePosition.endTime,
-                  }
-                : null;
+            const tempPos = tempPosById.get(subtitle.id) ?? null;
 
             const isSelected = selectedIds.includes(subtitle.id);
 

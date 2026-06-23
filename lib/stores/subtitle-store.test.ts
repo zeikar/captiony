@@ -241,6 +241,22 @@ describe("bulk mutations", () => {
     expect(a.startTime).toBe(0);
     expect(a.endTime).toBeCloseTo(2.5); // duration preserved
   });
+
+  it("nudgeSelectedSubtitles group-clamps so relative spacing is preserved", () => {
+    // seed "a": 2.5–5.0, "b": 6.0–9.5 — select BOTH, then nudge far left.
+    useSubtitleStore.getState().selectSubtitle("a");
+    useSubtitleStore.getState().toggleSubtitleSelection("b");
+    useSubtitleStore.getState().nudgeSelectedSubtitles(-100);
+    const state = useSubtitleStore.getState();
+    const a = state.subtitles.find((s) => s.id === "a")!;
+    const b = state.subtitles.find((s) => s.id === "b")!;
+    // The whole group is clamped by the earliest cue ("a"), so the delta is -2.5:
+    // "a" lands at 0 and "b" keeps its 3.5s gap (NOT both collapsed to 0).
+    expect(a.startTime).toBe(0);
+    expect(a.endTime).toBeCloseTo(2.5);
+    expect(b.startTime).toBeCloseTo(3.5);
+    expect(b.endTime).toBeCloseTo(7.0);
+  });
 });
 
 describe("anchor invariants on removal", () => {

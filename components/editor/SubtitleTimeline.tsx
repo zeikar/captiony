@@ -92,8 +92,12 @@ export const SubtitleTimeline: React.FC = memo(() => {
   } = constants;
 
   // Custom hooks
-  const { handleSubtitleMouseDown, isDragging, tempSubtitlePosition } =
+  const { handleSubtitleMouseDown, isDragging, tempSubtitlePositions } =
     useSubtitleDrag(pixelsPerSecond);
+
+  // Stable key for the set of bars being dragged this frame (ids don't change
+  // mid-drag, so the visible-list memo below isn't recomputed every drag frame).
+  const draggingIdsKey = tempSubtitlePositions.map((t) => t.id).join("|");
 
   useTimelineWheel(
     timelineRef as React.RefObject<HTMLDivElement>,
@@ -210,8 +214,8 @@ export const SubtitleTimeline: React.FC = memo(() => {
 
   // Filter to only visible subtitles (simple virtual list)
   const visibleSubtitleLayers = useMemo(() => {
-    // Always keep the currently dragged subtitle in the render list
-    const draggingId = tempSubtitlePosition?.id;
+    // Always keep the currently dragged subtitle(s) in the render list
+    const draggingIds = new Set(draggingIdsKey ? draggingIdsKey.split("|") : []);
 
     const intersects = (start: number, end: number) => {
       return end >= visibleTimeRange.start && start <= visibleTimeRange.end;
@@ -222,8 +226,8 @@ export const SubtitleTimeline: React.FC = memo(() => {
         // Skip subtitles that end before 0 (preserve existing logic)
         if (subtitle.endTime < 0) return false;
 
-        // Always keep the dragged subtitle
-        if (draggingId && subtitle.id === draggingId) return true;
+        // Always keep the dragged subtitle(s)
+        if (draggingIds.has(subtitle.id)) return true;
 
         // Render visibility check
         const startTime = subtitle.startTime;
@@ -235,7 +239,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
     subtitleLayers,
     visibleTimeRange.start,
     visibleTimeRange.end,
-    tempSubtitlePosition?.id,
+    draggingIdsKey,
   ]);
 
   // Overlap-check candidate pool: only subtitles intersecting the visible range (with overscan)
@@ -318,7 +322,7 @@ export const SubtitleTimeline: React.FC = memo(() => {
           <SubtitleLayer
             visibleSubtitleLayers={visibleSubtitleLayers}
             selectedIds={selectedIds}
-            tempSubtitlePosition={tempSubtitlePosition}
+            tempSubtitlePositions={tempSubtitlePositions}
             overlapCandidates={overlapCandidates}
             pixelsPerSecond={pixelsPerSecond}
             subtitleContainerTransform={subtitleContainerTransform}
